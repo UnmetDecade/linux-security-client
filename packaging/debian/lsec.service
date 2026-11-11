@@ -1,0 +1,41 @@
+[Unit]
+Description=lsec Linux unified security client
+Documentation=file:/usr/share/doc/lsec/README.md
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/lsec/lsec.toml
+
+[Service]
+Type=simple
+User=lsec
+Group=lsec
+ExecStart=/usr/bin/lsec-daemon --config /etc/lsec/lsec.toml
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+# Hardening. Scans only need read access to target paths; writes are confined
+# to the state/log/run directories below.
+NoNewPrivileges=yes
+PrivateTmp=no
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/lsec /var/log/lsec /run/lsec
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+Package: lsec
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: all
+Maintainer: UnmetDecade <83873031+UnmetDecade@users.noreply.github.com>
+Installed-Size: __INSTALLED_SIZE__
+Depends: python3 (>= 3.10), adduser
+Recommends: clamav, clamav-daemon, clamav-freshclam, yara, lynis
+Suggests: wazuh-agent
+Description: Linux unified security client (daemon + web UI + CLI)
+ lsec is a single-host security client that unifies read-only host auditing,
+ on-demand ClamAV and YARA scanning, signed YARA rule-pack management,
+ optional Falco alert ingestion and optional local Wazuh Agent alert
+ ingestion behind one Web UI and HTTP API.
+ .
+ The package installs a hardened systemd unit. It never enables ClamAV
+ on-access protection, never contacts a Wazuh Manager and never performs
+ automatic file deletion or container changes. Container monitoring requires
+ the separate read-only Docker proxy and is disabled by default.

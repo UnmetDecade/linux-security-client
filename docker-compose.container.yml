@@ -1,0 +1,53 @@
+# Optional container monitoring override.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.container.yml up -d
+#
+# The lsec Web/daemon container still does NOT mount the Docker socket. A
+# separate proxy container mounts it read-only and exposes only an allowlisted,
+# GET-only Docker API on a private network. The proxy remains a privileged
+# component because the socket is effectively host root; it is hardened with
+# no-new-privileges, all capabilities dropped and a read-only root filesystem.
+#
+# This override intentionally has no container stop/restart/remove capability:
+# the proxy rejects every non-GET method and lsec implements no such action.
+services:
+  docker-proxy:
+    build:
+      context: .
+      dockerfile: packaging/Dockerfile.proxy
+    image: lsec-docker-proxy:0.4.0
+    container_name: lsec-docker-proxy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=1m,mode=1777
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - lsec-internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  lsec:
+    image: lsec:0.4.0
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
+    environment:
+      LSEC_CONTAINERS_ENABLED: "1"
+      LSEC_CONTAINERS_API_URL: "http://docker-proxy:2375"
+      LSEC_FALCO_INGEST_ENABLED: "1"
+    networks:
+      - default
+      - lsec-internal
+
+networks:
+  lsec-internal:
+    internal: true

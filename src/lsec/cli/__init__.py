@@ -1,0 +1,1 @@
+"""lsec command line interface."""

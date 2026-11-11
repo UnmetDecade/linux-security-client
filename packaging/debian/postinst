@@ -1,0 +1,37 @@
+#!/bin/sh
+# lsec post-install / post-upgrade. Idempotent; never touches scan targets.
+set -e
+
+case "$1" in
+  configure)
+    if ! getent group lsec >/dev/null 2>&1; then
+      addgroup --system lsec
+    fi
+    if ! getent passwd lsec >/dev/null 2>&1; then
+      adduser --system --ingroup lsec --home /var/lib/lsec \
+        --shell /usr/sbin/nologin --disabled-login --gecos "lsec" lsec
+    fi
+
+    install -d -m 0750 -o lsec -g lsec \
+      /var/lib/lsec /var/lib/lsec/logs /var/lib/lsec/clamav \
+      /var/lib/lsec/yara /var/lib/lsec/yara/inbox /var/lib/lsec/wazuh
+    install -d -m 0700 -o lsec -g lsec \
+      /var/lib/lsec/secrets /var/lib/lsec/evidence /var/lib/lsec/quarantine
+    install -d -m 0750 -o lsec -g lsec /var/log/lsec /run/lsec
+    chmod 0750 /var/lib/lsec/yara /var/lib/lsec/yara/inbox
+
+    if [ -d /run/systemd/system ]; then
+      systemctl daemon-reload || true
+      systemctl enable lsec.service >/dev/null 2>&1 || true
+      if [ -n "$2" ]; then
+        # Upgrade: restart only if already running, so an operator-stopped
+        # service stays stopped.
+        systemctl try-restart lsec.service >/dev/null 2>&1 || true
+      else
+        systemctl start lsec.service >/dev/null 2>&1 || true
+      fi
+    fi
+    ;;
+esac
+
+exit 0

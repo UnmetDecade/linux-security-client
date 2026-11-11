@@ -1,0 +1,10 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+data
+scan-data
+tests
+docs
+*.md

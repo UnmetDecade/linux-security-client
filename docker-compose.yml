@@ -1,0 +1,47 @@
+services:
+  lsec:
+    build:
+      context: .
+      dockerfile: packaging/Dockerfile
+      # Build-time only: use the host network so apt can reach the Debian
+      # mirror on hosts where Docker's embedded DNS cannot resolve (for example
+      # systemd-resolved on 127.0.0.53). This does not change runtime networking.
+      network: host
+      args:
+        # Optional faster Debian mirror for constrained networks, e.g.
+        #   LSEC_DEBIAN_MIRROR=http://mirrors.ustc.edu.cn docker compose build
+        DEBIAN_MIRROR: "${LSEC_DEBIAN_MIRROR:-http://deb.debian.org}"
+    image: lsec:0.4.0
+    container_name: lsec
+    restart: unless-stopped
+    # tini is already PID 1 via the image ENTRYPOINT. Do not double-wrap it
+    # with Docker's init: true.
+    # Default: only reachable from the Docker host (use an SSH tunnel for remote
+    # browsers). Set LSEC_LISTEN_ADDR=0.0.0.0 only on a trusted network, and
+    # prefer TLS via a reverse proxy or server.tls_cert/tls_key.
+    ports:
+      - "${LSEC_LISTEN_ADDR:-127.0.0.1}:${LSEC_PORT:-8080}:8080"
+    environment:
+      LSEC_BIND: "0.0.0.0"
+      LSEC_PORT: "8080"
+      LSEC_LOG_LEVEL: "${LSEC_LOG_LEVEL:-INFO}"
+      # Required because the container listens on 0.0.0.0; the port mapping
+      # above is what actually limits exposure. See README security notes.
+      LSEC_ALLOW_INSECURE_REMOTE: "1"
+    volumes:
+      - lsec-data:/data
+      - lsec-clamav-db:/var/lib/clamav
+      # Files placed here can be scanned, quarantined and restored.
+      - ${LSEC_SCAN_DIR:-./scan-data}:/scan
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  lsec-data:
+  lsec-clamav-db:

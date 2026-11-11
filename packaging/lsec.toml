@@ -1,0 +1,118 @@
+# lsec container configuration.
+# Unknown keys are rejected by the daemon; this file is mounted at
+# /etc/lsec/lsec.toml inside the image.
+
+[server]
+bind = "0.0.0.0"
+port = 8080
+session_ttl_hours = 12
+# The container listens on 0.0.0.0 so Docker can forward the port. Host-side
+# exposure is controlled by docker-compose.yml (loopback by default). For LAN
+# access enable TLS or accept the explicit risk documented in the README.
+allow_insecure_remote = true
+max_body_bytes = 1048576
+login_attempts_per_minute = 10
+
+[storage]
+data_dir = "/data"
+evidence_max_mb = 512
+quarantine_max_mb = 2048
+event_retention_days = 90
+event_dedup_window_hours = 24
+
+[scan]
+allowed_roots = ["/scan", "/tmp", "/var/tmp"]
+quick_scan_paths = ["/scan", "/tmp", "/var/tmp"]
+skip_paths = ["/proc", "/sys", "/dev", "/run", "/var/lib/docker", "/var/lib/containerd", "/data"]
+max_file_size_mb = 200
+file_timeout_seconds = 60
+max_parallel_tasks = 1
+max_errors_recorded = 100
+
+[response]
+quarantine_roots = ["/scan", "/tmp", "/var/tmp"]
+default_mode = "suggest"
+auto_quarantine_enabled = false
+
+[clamav]
+socket_path = "/run/clamav/clamd.ctl"
+clamd_bin = "clamd"
+freshclam_bin = "freshclam"
+clamscan_bin = "clamscan"
+sigtool_bin = "sigtool"
+database_dir = "/var/lib/clamav"
+config_path = "/data/clamav/clamd.conf"
+socket_timeout_seconds = 60
+update_interval_hours = 24
+freshclam_enabled = true
+auto_start = true
+startup_update = true
+
+[audit]
+lynis_bin = "lynis"
+lynis_enabled = true
+lynis_timeout_seconds = 300
+stale_after_hours = 168
+max_findings = 200
+
+# Read-only Docker inventory / configuration checks.
+# Disabled by default. docker-compose.container.yml enables this and points
+# api_url at the separate GET-only docker-proxy service. Never point this at a
+# raw host Docker socket from an untrusted network, and never expose the proxy
+# outside the internal compose network.
+[containers]
+enabled = false
+api_url = "http://docker-proxy:2375"
+timeout_seconds = 8
+refresh_seconds = 60
+max_containers = 200
+include_stopped = true
+
+# Falco is detected, never installed or started by lsec. When ingestion is
+# enabled a dedicated token is created at /data/secrets/falco.token; only that
+# token may POST to /api/v1/integrations/falco.
+[falco]
+binary = "falco"
+enabled = true
+ingest_enabled = false
+max_event_bytes = 32768
+
+# YARA signed rule-pack management and on-demand rule scanning.
+# The daemon never downloads rules. Place a signed pack in the inbox (inside the
+# /data volume), upload the trusted public key, then install/activate it through
+# the admin UI or CLI. With require_signature = true and no trusted.pem, pack
+# installation is refused rather than silently trusting unverified rules.
+[yara]
+binary = "yara"
+yarac_binary = "yarac"
+enabled = true
+rules_dir = "/data/yara"
+inbox_dir = "/data/yara/inbox"
+public_key = "/data/yara/trusted.pem"
+require_signature = true
+max_pack_mb = 20
+max_rule_files = 200
+scan_batch_files = 200
+scan_timeout_seconds = 120
+
+# Optional Wazuh Agent integration. The container image does not include a
+# Wazuh Agent; with enabled = false the component is reported as not enabled.
+# Even when enabled, lsec only reads local Agent status and (optionally) local
+# alerts.json. It is not a Wazuh Manager and never claims manager capability.
+[wazuh]
+enabled = false
+agent_bin = "wazuh-agentd"
+control_bin = "wazuh-control"
+install_dir = "/var/ossec"
+alerts_path = "/var/ossec/logs/alerts/alerts.json"
+ingest_enabled = false
+poll_seconds = 30
+max_event_bytes = 32768
+max_read_bytes = 1048576
+state_dir = "/data/wazuh"
+
+[logging]
+level = "INFO"
+file = "/data/logs/lsec.log"
+max_bytes = 10485760
+backups = 5

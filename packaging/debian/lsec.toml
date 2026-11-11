@@ -1,0 +1,107 @@
+# lsec host (deb package) configuration.
+# Installed as /etc/lsec/lsec.toml and tracked as a conffile.
+# Unknown keys are rejected by the daemon. Run `lsec doctor` after editing.
+
+[server]
+bind = "127.0.0.1"
+port = 8080
+session_ttl_hours = 12
+allow_insecure_remote = false
+max_body_bytes = 1048576
+login_attempts_per_minute = 10
+
+[storage]
+data_dir = "/var/lib/lsec"
+evidence_max_mb = 512
+quarantine_max_mb = 2048
+event_retention_days = 90
+event_dedup_window_hours = 24
+
+[scan]
+allowed_roots = ["/home", "/tmp", "/var/tmp", "/opt", "/srv", "/usr/local"]
+quick_scan_paths = ["/home", "/tmp", "/var/tmp"]
+skip_paths = ["/proc", "/sys", "/dev", "/run", "/var/lib/docker", "/var/lib/containerd", "/var/lib/lsec"]
+max_file_size_mb = 200
+file_timeout_seconds = 60
+max_parallel_tasks = 1
+max_errors_recorded = 100
+
+[response]
+quarantine_roots = ["/home", "/tmp", "/var/tmp", "/opt", "/srv", "/usr/local"]
+default_mode = "suggest"
+auto_quarantine_enabled = false
+
+[clamav]
+# lsec starts its own clamd and keeps the signature database under its state
+# directory so the service needs no extra privileges.
+socket_path = "/run/lsec/clamd.ctl"
+clamd_bin = "clamd"
+freshclam_bin = "freshclam"
+clamscan_bin = "clamscan"
+sigtool_bin = "sigtool"
+database_dir = "/var/lib/lsec/clamav"
+config_path = "/var/lib/lsec/clamav/clamd.conf"
+socket_timeout_seconds = 60
+update_interval_hours = 24
+freshclam_enabled = true
+auto_start = true
+startup_update = true
+
+[audit]
+lynis_bin = "lynis"
+lynis_enabled = true
+lynis_timeout_seconds = 300
+stale_after_hours = 168
+max_findings = 200
+
+# Host Docker monitoring is disabled by default. Enabling it requires a
+# separate read-only proxy; never point lsec at a raw Docker socket.
+[containers]
+enabled = false
+api_url = "http://127.0.0.1:2375"
+timeout_seconds = 8
+refresh_seconds = 60
+max_containers = 200
+include_stopped = true
+
+# Falco is detected, never installed or started by lsec.
+[falco]
+binary = "falco"
+enabled = true
+ingest_enabled = false
+max_event_bytes = 32768
+
+# Signed YARA rule packs. Place a signed pack in the inbox, install it through
+# the admin UI/CLI and upload the trusted public key first.
+[yara]
+binary = "yara"
+yarac_binary = "yarac"
+enabled = true
+rules_dir = "/var/lib/lsec/yara"
+inbox_dir = "/var/lib/lsec/yara/inbox"
+public_key = "/var/lib/lsec/yara/trusted.pem"
+require_signature = true
+max_pack_mb = 20
+max_rule_files = 200
+scan_batch_files = 200
+scan_timeout_seconds = 120
+
+# Optional local Wazuh Agent observation. lsec is not a Wazuh Manager and does
+# not manage other agents. The Agent itself must be installed separately.
+[wazuh]
+enabled = false
+agent_bin = "wazuh-agentd"
+control_bin = "wazuh-control"
+install_dir = "/var/ossec"
+alerts_path = "/var/ossec/logs/alerts/alerts.json"
+ingest_enabled = false
+poll_seconds = 30
+max_event_bytes = 32768
+max_read_bytes = 1048576
+state_dir = "/var/lib/lsec/wazuh"
+
+[logging]
+level = "INFO"
+file = "/var/log/lsec/lsec.log"
+max_bytes = 10485760
+backups = 5
