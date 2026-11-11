@@ -76,6 +76,7 @@ install -m 0644 "$ROOT/packaging/debian/lsec.toml" "$STAGE/etc/lsec/lsec.toml"
 install -m 0644 "$ROOT/packaging/debian/lsec.service" "$STAGE/lib/systemd/system/lsec.service"
 install -m 0644 "$ROOT/packaging/debian/copyright" "$STAGE/usr/share/doc/lsec/copyright"
 install -m 0644 "$ROOT/README.md" "$STAGE/usr/share/doc/lsec/README.md"
+install -m 0644 "$ROOT/README.zh-CN.md" "$STAGE/usr/share/doc/lsec/README.zh-CN.md"
 cp -a "$ROOT/docs" "$STAGE/usr/share/doc/lsec/docs"
 find "$STAGE/usr/share/doc/lsec/docs" -type d -name __pycache__ -prune -exec rm -rf {} +
 
@@ -100,7 +101,7 @@ dpkg-deb --root-owner-group --build "$STAGE" "$DEB" >/dev/null
 SOURCE="$DIST/lsec-${VERSION}-source.tar.gz"
 tar -C "$ROOT" -czf "$SOURCE" \
     --exclude='__pycache__' --exclude='*.pyc' \
-    src tests docs scripts packaging README.md LICENSE SECURITY.md \
+    src tests docs scripts packaging README.md README.zh-CN.md LICENSE SECURITY.md \
     docker-compose.yml docker-compose.container.yml
 
 cat > "$DIST/BUILD-MANIFEST.txt" <<EOF
