@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lsec — Unified Linux Security Client</title>
+  <meta name="description" content="A local-first Linux security client that unifies ClamAV, YARA, Lynis, Falco, and an optional local Wazuh Agent behind one daemon, web UI, and CLI.">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('lsec-docs-theme');
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+      } catch (err) { /* storage is optional */ }
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-muted: #eceff3;
+      --text: #16181d;
+      --muted: #59616e;
+      --border: #dde1e7;
+      --accent: #2456c9;
+      --accent-contrast: #ffffff;
+      --accent-soft: #e5ecfb;
+      --ok: #1d7a4c;
+      --ok-soft: #e3f4eb;
+      --warn: #9a4b12;
+      --warn-soft: #fbeadf;
+      --shadow: 0 12px 30px rgba(20, 24, 33, 0.08);
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #101216;
+        --surface: #181b21;
+        --surface-muted: #20242c;
+        --text: #e8eaee;
+        --muted: #a2aab8;
+        --border: #2c313a;
+        --accent: #7ba2ff;
+        --accent-contrast: #0d1424;
+        --accent-soft: #1d2942;
+        --ok: #7bd6a6;
+        --ok-soft: #16301f;
+        --warn: #f0b07a;
+        --warn-soft: #35241a;
+        --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #101216;
+      --surface: #181b21;
+      --surface-muted: #20242c;
+      --text: #e8eaee;
+      --muted: #a2aab8;
+      --border: #2c313a;
+      --accent: #7ba2ff;
+      --accent-contrast: #0d1424;
+      --accent-soft: #1d2942;
+      --ok: #7bd6a6;
+      --ok-soft: #16301f;
+      --warn: #f0b07a;
+      --warn-soft: #35241a;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    header.site {
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .site-inner {
+      display: flex; align-items: center; gap: 18px;
+      min-height: 62px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; font-weight: 700; color: var(--text); }
+    .brand .mark {
+      display: inline-grid; place-items: center;
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--accent); color: var(--accent-contrast);
+      font-size: 15px; font-weight: 800;
+    }
+    .brand small { color: var(--muted); font-weight: 500; font-size: 13px; }
+    nav.site-links { display: flex; gap: 18px; margin-left: auto; font-size: 14px; }
+    nav.site-links a { color: var(--muted); }
+    nav.site-links a:hover { color: var(--text); }
+    .theme-toggle {
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: 8px; cursor: pointer;
+      width: 34px; height: 34px; font-size: 15px; line-height: 1;
+    }
+    .theme-toggle:hover { border-color: var(--accent); }
+    .lang-link {
+      font-size: 13px; border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; color: var(--muted);
+    }
+    main { padding: 56px 0 40px; }
+    .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; }
+    .eyebrow {
+      display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+      padding: 5px 10px; border-radius: 999px;
+    }
+    h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.1; letter-spacing: -0.02em; margin: 18px 0 16px; }
+    .lede { color: var(--muted); font-size: 18px; max-width: 56ch; margin: 0 0 26px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .button {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: var(--accent-contrast);
+      padding: 11px 18px; border-radius: 9px; font-weight: 600; font-size: 15px;
+      border: 1px solid transparent;
+    }
+    .button:hover { text-decoration: none; filter: brightness(1.06); }
+    .button.secondary {
+      background: var(--surface); color: var(--text); border-color: var(--border);
+    }
+    .button.secondary:hover { border-color: var(--accent); }
+    .shot {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 8px; box-shadow: var(--shadow);
+    }
+    .shot img { display: block; width: 100%; height: auto; border-radius: 8px; }
+    .shot figcaption { color: var(--muted); font-size: 12px; padding: 8px 4px 2px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    .pill {
+      font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+      background: var(--surface); border-radius: 999px; padding: 4px 10px;
+    }
+    section { margin-top: 72px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    h2 { font-size: 1.55rem; letter-spacing: -0.01em; margin: 0; }
+    .section-head p { color: var(--muted); margin: 0; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 22px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .card .tag {
+      display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--ok); background: var(--ok-soft);
+      padding: 3px 8px; border-radius: 999px; margin-bottom: 12px;
+    }
+    .boundaries {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 4px solid var(--warn); border-radius: 12px; padding: 24px;
+    }
+    .boundaries h2 { font-size: 1.2rem; }
+    .boundaries ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+    .boundaries li { margin: 6px 0; }
+    .boundaries strong { color: var(--text); }
+    footer.site {
+      margin-top: 80px; border-top: 1px solid var(--border);
+      padding: 26px 0 40px; color: var(--muted); font-size: 13px;
+    }
+    .footer-inner { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+    .footer-inner nav { display: flex; flex-wrap: wrap; gap: 16px; }
+    .footer-inner a { color: var(--muted); }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 30px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      nav.site-links { display: none; }
+    }
+    @media (max-width: 620px) {
+      .wrap { width: calc(100% - 32px); }
+      .grid { grid-template-columns: 1fr; }
+      main { padding-top: 36px; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="wrap site-inner">
+      <a class="brand" href="https://github.com/UnmetDecade/linux-security-client">
+        <span class="mark">L</span>
+        <span>lsec</span>
+        <small>Unified Linux security</small>
+      </a>
+      <nav class="site-links" aria-label="Primary">
+        <a href="https://github.com/UnmetDecade/linux-security-client#readme">README</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/tree/main/docs">Docs</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/releases">Releases</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/SECURITY.md">Security</a>
+      </nav>
+      <a class="lang-link" href="index.zh-CN.html" lang="zh-CN">中文</a>
+      <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Toggle color theme">◐</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div>
+        <span class="eyebrow">Local-first · Read-only by default</span>
+        <h1>One honest view of your Linux host security.</h1>
+        <p class="lede">
+          lsec is a single-instance daemon that unifies ClamAV, YARA, Lynis, Falco,
+          and an optional local Wazuh Agent behind one web UI, HTTP API, and CLI.
+          Every status and risk conclusion comes from real on-host probing — an
+          uninstalled or unverifiable capability is never shown as protecting you.
+        </p>
+        <div class="actions">
+          <a class="button" href="https://github.com/UnmetDecade/linux-security-client#quick-start-docker">Get started</a>
+          <a class="button secondary" href="https://github.com/UnmetDecade/linux-security-client/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+        </div>
+        <div class="pill-row">
+          <span class="pill">Python 3.11+ · standard library only</span>
+          <span class="pill">Docker Compose or .deb</span>
+          <span class="pill">MIT licensed</span>
+          <span class="pill">English / 中文 UI</span>
+        </div>
+      </div>
+      <figure class="shot">
+        <img src="images/dashboard.png" alt="lsec web dashboard showing protection status, component health, scans, and container risks" width="1400" height="875">
+        <figcaption>Real dashboard from a test deployment that intentionally runs a risky container.</figcaption>
+      </figure>
+    </div>
+
+    <section aria-labelledby="capabilities">
+      <div class="section-head">
+        <h2 id="capabilities">What it does</h2>
+        <p>Every capability is probed, executed, and verified on the host itself.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Truthful status</span>
+          <h3>Installed is not protecting</h3>
+          <p>Component health distinguishes not installed, stopped, degraded, permission denied, and check failed. The overall status is derived from those facts.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Malware</span>
+          <h3>ClamAV and YARA</h3>
+          <p>On-demand scans through clamd, freshclam updates with CVD signature verification, and signed YARA rule packs validated with SHA-256, OpenSSL, and yarac.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Host baseline</span>
+          <h3>Built-in audit and Lynis</h3>
+          <p>Read-only checks for UID 0 accounts, empty passwords, sensitive permissions, SSH configuration, listening ports, ASLR, and AppArmor/SELinux.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Runtime</span>
+          <h3>Falco and Wazuh events</h3>
+          <p>Falco capability probing with a read-only install plan, plus optional local Wazuh Agent alert ingestion — never a Manager that controls other hosts.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Containers</span>
+          <h3>Risky configuration checks</h3>
+          <p>Inventory through a separate GET-only Docker API proxy. lsec does not mount the Docker socket and cannot start, stop, or remove containers.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Operations</span>
+          <h3>One event center and audit trail</h3>
+          <p>Normalized events with deterministic severity, deduplication, quarantine with hash verification, and JSON/CSV export for every response action.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="boundaries" aria-labelledby="boundaries">
+      <h2 id="boundaries">What it deliberately does not do</h2>
+      <ul>
+        <li><strong>No automatic remediation.</strong> It does not delete files, kill processes, or stop containers without an explicit, audited confirmation.</li>
+        <li><strong>No automatic installs.</strong> Falco and YARA rule packs are never installed or downloaded silently; install plans are read-only.</li>
+        <li><strong>No Wazuh Manager features.</strong> Only the local Agent and its alerts are read.</li>
+        <li><strong>No ClamAV real-time protection in containers.</strong> fanotify/On-Access is not available, and the UI says so instead of claiming coverage.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="start">
+      <div class="section-head">
+        <h2 id="start">Run it in a minute</h2>
+        <p>Docker Compose is the fastest path; the first start downloads ClamAV signatures.</p>
+      </div>
+      <div class="card">
+        <h3>Quick start</h3>
+        <p style="margin-bottom:14px">Build the image, start the daemon on loopback, and read the generated admin token.</p>
+        <pre style="overflow:auto;background:var(--surface-muted);padding:16px;border-radius:10px;font-size:13px;line-height:1.55"><code>git clone https://github.com/UnmetDecade/linux-security-client.git
+cd linux-security-client
+docker compose up -d --build
+docker compose exec -T lsec cat /data/secrets/admin.token</code></pre>
+        <p style="margin-top:14px">Then open <code>http://127.0.0.1:8080/</code>. Use an SSH tunnel for remote access.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap footer-inner">
+      <span>lsec 0.4.0 · MIT License · Built for hosts you own and operate.</span>
+      <nav aria-label="Footer">
+        <a href="https://github.com/UnmetDecade/linux-security-client">GitHub</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/docs/SECURITY.md">Security model</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var button = document.getElementById('theme-toggle');
+      if (!button) return;
+      button.addEventListener('click', function () {
+        var root = document.documentElement;
+        var current = root.dataset.theme;
+        if (!current) {
+          current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        var next = current === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try { localStorage.setItem('lsec-docs-theme', next); } catch (err) { /* optional */ }
+      });
+    })();
+  </script>
+</body>
+</html>

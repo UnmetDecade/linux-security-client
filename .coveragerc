@@ -1,0 +1,10 @@
+[run]
+source = src/lsec
+
+[report]
+precision = 0
+show_missing = true
+fail_under = 64
+exclude_lines =
+    pragma: no cover
+    if __name__ == "__main__":

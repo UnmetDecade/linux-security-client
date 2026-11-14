@@ -14,7 +14,27 @@ PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 
 要求 Python 3.11+（使用 `tomllib`、`X | None` 类型语法）。
 
+Web 资源、翻译表与文档链接有一项独立的零依赖检查：
+
+```bash
+node scripts/check-web.js
+```
+
 ## 2. 覆盖范围
+
+CI 会统计 Python 覆盖率，并强制 64% 全局门槛；HTTP API、认证、事件映射、主机体检、
+YARA 校验、隔离区、Docker API 客户端与存储还有更严格的单文件门槛：
+
+```bash
+PYTHONPATH=src python3 -m coverage run -m unittest discover -s tests -t .
+python3 -m coverage report --fail-under=64
+python3 -m coverage json -o coverage.json
+python3 scripts/check-coverage.py coverage.json
+```
+
+门槛定义在 `scripts/check-coverage.py`，取值略低于当前实测值：真实回退会让构建失败，
+但不会因为无关改动而变得脆弱。补测试时优先覆盖网络客户端、数据映射、操作载荷与
+共享 UI 基础组件，最后才是页面级行为。
 
 ### 单元测试
 

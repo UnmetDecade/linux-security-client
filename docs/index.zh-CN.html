@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lsec — 统一 Linux 安全客户端</title>
+  <meta name="description" content="本地优先的 Linux 安全客户端，把 ClamAV、YARA、Lynis、Falco 与可选的本地 Wazuh Agent 统一到一个守护进程、Web UI 与 CLI 中。">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('lsec-docs-theme');
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+      } catch (err) { /* 存储不可用时忽略 */ }
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-muted: #eceff3;
+      --text: #16181d;
+      --muted: #59616e;
+      --border: #dde1e7;
+      --accent: #2456c9;
+      --accent-contrast: #ffffff;
+      --accent-soft: #e5ecfb;
+      --ok: #1d7a4c;
+      --ok-soft: #e3f4eb;
+      --warn: #9a4b12;
+      --warn-soft: #fbeadf;
+      --shadow: 0 12px 30px rgba(20, 24, 33, 0.08);
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #101216;
+        --surface: #181b21;
+        --surface-muted: #20242c;
+        --text: #e8eaee;
+        --muted: #a2aab8;
+        --border: #2c313a;
+        --accent: #7ba2ff;
+        --accent-contrast: #0d1424;
+        --accent-soft: #1d2942;
+        --ok: #7bd6a6;
+        --ok-soft: #16301f;
+        --warn: #f0b07a;
+        --warn-soft: #35241a;
+        --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #101216;
+      --surface: #181b21;
+      --surface-muted: #20242c;
+      --text: #e8eaee;
+      --muted: #a2aab8;
+      --border: #2c313a;
+      --accent: #7ba2ff;
+      --accent-contrast: #0d1424;
+      --accent-soft: #1d2942;
+      --ok: #7bd6a6;
+      --ok-soft: #16301f;
+      --warn: #f0b07a;
+      --warn-soft: #35241a;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    header.site {
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .site-inner { display: flex; align-items: center; gap: 18px; min-height: 62px; }
+    .brand { display: flex; align-items: baseline; gap: 10px; font-weight: 700; color: var(--text); }
+    .brand .mark {
+      display: inline-grid; place-items: center;
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--accent); color: var(--accent-contrast);
+      font-size: 15px; font-weight: 800;
+    }
+    .brand small { color: var(--muted); font-weight: 500; font-size: 13px; }
+    nav.site-links { display: flex; gap: 18px; margin-left: auto; font-size: 14px; }
+    nav.site-links a { color: var(--muted); }
+    nav.site-links a:hover { color: var(--text); }
+    .theme-toggle {
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: 8px; cursor: pointer;
+      width: 34px; height: 34px; font-size: 15px; line-height: 1;
+    }
+    .theme-toggle:hover { border-color: var(--accent); }
+    .lang-link {
+      font-size: 13px; border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; color: var(--muted);
+    }
+    main { padding: 56px 0 40px; }
+    .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; }
+    .eyebrow {
+      display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      color: var(--accent); background: var(--accent-soft);
+      padding: 5px 10px; border-radius: 999px;
+    }
+    h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.18; letter-spacing: -0.02em; margin: 18px 0 16px; }
+    .lede { color: var(--muted); font-size: 17px; max-width: 56ch; margin: 0 0 26px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .button {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: var(--accent-contrast);
+      padding: 11px 18px; border-radius: 9px; font-weight: 600; font-size: 15px;
+      border: 1px solid transparent;
+    }
+    .button:hover { text-decoration: none; filter: brightness(1.06); }
+    .button.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .button.secondary:hover { border-color: var(--accent); }
+    .shot {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 8px; box-shadow: var(--shadow);
+    }
+    .shot img { display: block; width: 100%; height: auto; border-radius: 8px; }
+    .shot figcaption { color: var(--muted); font-size: 12px; padding: 8px 4px 2px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    .pill {
+      font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+      background: var(--surface); border-radius: 999px; padding: 4px 10px;
+    }
+    section { margin-top: 72px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    h2 { font-size: 1.55rem; letter-spacing: -0.01em; margin: 0; }
+    .section-head p { color: var(--muted); margin: 0; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 22px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .card .tag {
+      display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      color: var(--ok); background: var(--ok-soft);
+      padding: 3px 8px; border-radius: 999px; margin-bottom: 12px;
+    }
+    .boundaries {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 4px solid var(--warn); border-radius: 12px; padding: 24px;
+    }
+    .boundaries h2 { font-size: 1.2rem; }
+    .boundaries ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+    .boundaries li { margin: 6px 0; }
+    .boundaries strong { color: var(--text); }
+    footer.site {
+      margin-top: 80px; border-top: 1px solid var(--border);
+      padding: 26px 0 40px; color: var(--muted); font-size: 13px;
+    }
+    .footer-inner { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; }
+    .footer-inner nav { display: flex; flex-wrap: wrap; gap: 16px; }
+    .footer-inner a { color: var(--muted); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 30px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      nav.site-links { display: none; }
+    }
+    @media (max-width: 620px) {
+      .wrap { width: calc(100% - 32px); }
+      .grid { grid-template-columns: 1fr; }
+      main { padding-top: 36px; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="wrap site-inner">
+      <a class="brand" href="https://github.com/UnmetDecade/linux-security-client">
+        <span class="mark">L</span>
+        <span>lsec</span>
+        <small>Linux 安全防护</small>
+      </a>
+      <nav class="site-links" aria-label="主导航">
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/README.zh-CN.md">README</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/tree/main/docs">文档</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/releases">发布</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/SECURITY.zh-CN.md">安全</a>
+      </nav>
+      <a class="lang-link" href="index.html" lang="en">English</a>
+      <button class="theme-toggle" type="button" id="theme-toggle" aria-label="切换明暗主题">◐</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div>
+        <span class="eyebrow">本地优先 · 默认只读</span>
+        <h1>对主机安全，只给一个如实的视图。</h1>
+        <p class="lede">
+          lsec 是单实例守护进程，把 ClamAV、YARA、Lynis、Falco 与可选的本地 Wazuh Agent
+          统一到一个 Web UI、HTTP API 和 CLI 中。所有状态与风险结论都来自真实的主机探测——
+          未安装或无法验证的能力，绝不会显示成“正在保护”。
+        </p>
+        <div class="actions">
+          <a class="button" href="https://github.com/UnmetDecade/linux-security-client/blob/main/README.zh-CN.md#快速开始docker">开始使用</a>
+          <a class="button secondary" href="https://github.com/UnmetDecade/linux-security-client/blob/main/docs/ARCHITECTURE.zh-CN.md">架构说明</a>
+        </div>
+        <div class="pill-row">
+          <span class="pill">Python 3.11+ · 仅标准库</span>
+          <span class="pill">Docker Compose 或 .deb</span>
+          <span class="pill">MIT 许可证</span>
+          <span class="pill">中文 / English UI</span>
+        </div>
+      </div>
+      <figure class="shot">
+        <img src="images/zh-CN/dashboard.png" alt="lsec Web 仪表盘：防护状态、组件健康、扫描记录与容器风险" width="1400" height="875">
+        <figcaption>真实仪表盘截图，来自一个故意运行高风险容器的测试部署。</figcaption>
+      </figure>
+    </div>
+
+    <section aria-labelledby="capabilities">
+      <div class="section-head">
+        <h2 id="capabilities">它能做什么</h2>
+        <p>每项能力都在主机上真实探测、真实执行、真实校验。</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">如实状态</span>
+          <h3>“已安装”不等于“正在防护”</h3>
+          <p>组件健康区分未安装、未启动、降级、权限不足与检查失败；总体状态由这些事实推导，不做乐观合并。</p>
+        </div>
+        <div class="card">
+          <span class="tag">恶意软件</span>
+          <h3>ClamAV 与 YARA</h3>
+          <p>通过 clamd 按需扫描；freshclam 更新后用 CVD 签名复核；YARA 规则包经 SHA-256、OpenSSL 与 yarac 编译校验。</p>
+        </div>
+        <div class="card">
+          <span class="tag">主机基线</span>
+          <h3>内置体检与 Lynis</h3>
+          <p>只读检查 UID 0 账号、空密码、敏感权限、SSH 配置、监听端口、ASLR 与 AppArmor/SELinux。</p>
+        </div>
+        <div class="card">
+          <span class="tag">运行时</span>
+          <h3>Falco 与 Wazuh 事件</h3>
+          <p>探测 Falco 能力并给出只读安装计划；可选读取本地 Wazuh Agent 告警——绝不是控制其他主机的 Manager。</p>
+        </div>
+        <div class="card">
+          <span class="tag">容器</span>
+          <h3>风险配置检查</h3>
+          <p>通过独立的 GET-only Docker API 代理读取清单；lsec 不挂载 Docker Socket，也不能启动、停止或删除容器。</p>
+        </div>
+        <div class="card">
+          <span class="tag">运维</span>
+          <h3>统一事件中心与审计</h3>
+          <p>事件归一化、确定性严重度、去重、带哈希校验的隔离区，以及每次处置的 JSON/CSV 导出。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="boundaries" aria-labelledby="boundaries">
+      <h2 id="boundaries">它有意不做的事</h2>
+      <ul>
+        <li><strong>不自动修复。</strong>没有显式、可审计的确认，就不会删除文件、终止进程或停止容器。</li>
+        <li><strong>不自动安装。</strong>Falco 与 YARA 规则包不会被静默安装或下载；安装计划是只读的。</li>
+        <li><strong>不提供 Wazuh Manager 能力。</strong>只读取本地 Agent 及其告警。</li>
+        <li><strong>容器内不提供 ClamAV 实时防护。</strong>fanotify/On-Access 不可用，UI 会如实标注，而不是假装已覆盖。</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="start">
+      <div class="section-head">
+        <h2 id="start">一分钟跑起来</h2>
+        <p>Docker Compose 最快；首次启动会下载 ClamAV 病毒库。</p>
+      </div>
+      <div class="card">
+        <h3>快速开始</h3>
+        <p style="margin-bottom:14px">构建镜像、在回环地址启动守护进程，然后读取自动生成的管理员令牌。</p>
+        <pre style="overflow:auto;background:var(--surface-muted);padding:16px;border-radius:10px;font-size:13px;line-height:1.55"><code>git clone https://github.com/UnmetDecade/linux-security-client.git
+cd linux-security-client
+docker compose up -d --build
+docker compose exec -T lsec cat /data/secrets/admin.token</code></pre>
+        <p style="margin-top:14px">然后打开 <code>http://127.0.0.1:8080/</code>。远程访问请使用 SSH 隧道。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap footer-inner">
+      <span>lsec 0.4.0 · MIT 许可证 · 面向你拥有并运维的主机。</span>
+      <nav aria-label="页脚">
+        <a href="https://github.com/UnmetDecade/linux-security-client">GitHub</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/CHANGELOG.zh-CN.md">更新日志</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/CONTRIBUTING.zh-CN.md">参与贡献</a>
+        <a href="https://github.com/UnmetDecade/linux-security-client/blob/main/docs/SECURITY.zh-CN.md">安全模型</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var button = document.getElementById('theme-toggle');
+      if (!button) return;
+      button.addEventListener('click', function () {
+        var root = document.documentElement;
+        var current = root.dataset.theme;
+        if (!current) {
+          current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        var next = current === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try { localStorage.setItem('lsec-docs-theme', next); } catch (err) { /* 可选 */ }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -4,6 +4,9 @@ __pycache__/
 .env
 .venv/
 .pytest_cache/
+.coverage
+coverage.json
+htmlcov/
 data/
 scan-data/
 dist/

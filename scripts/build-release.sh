@@ -101,7 +101,12 @@ dpkg-deb --root-owner-group --build "$STAGE" "$DEB" >/dev/null
 SOURCE="$DIST/lsec-${VERSION}-source.tar.gz"
 tar -C "$ROOT" -czf "$SOURCE" \
     --exclude='__pycache__' --exclude='*.pyc' \
-    src tests docs scripts packaging README.md README.zh-CN.md LICENSE SECURITY.md \
+    src tests docs scripts packaging .github \
+    README.md README.zh-CN.md CHANGELOG.md CHANGELOG.zh-CN.md \
+    CONTRIBUTING.md CONTRIBUTING.zh-CN.md \
+    CODE_OF_CONDUCT.md CODE_OF_CONDUCT.zh-CN.md \
+    LICENSE SECURITY.md SECURITY.zh-CN.md \
+    requirements.txt requirements-dev.txt .coveragerc .editorconfig \
     docker-compose.yml docker-compose.container.yml
 
 cat > "$DIST/BUILD-MANIFEST.txt" <<EOF

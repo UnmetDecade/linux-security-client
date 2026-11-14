@@ -40,6 +40,22 @@ dpkg-deb --info dist/lsec_0.4.0_all.deb
 
 > When no signing key is provided, `BUILD-MANIFEST.txt` records `signed=no`, and `verify-release.sh` explicitly reports that the build is unsigned. Do not distribute an unsigned build as a trusted release.
 
+### Automated release
+
+Pushing a tag that matches `v*` runs the `release` job in `.github/workflows/ci.yml`
+after all checks pass. It builds the deb and source archive without a signing key
+and publishes them with generated release notes:
+
+```bash
+git tag -a v0.4.0 -m "v0.4.0"
+git push origin v0.4.0
+```
+
+CI never holds a GPG private key. If a release must be signed, build and sign the
+artifacts on a trusted machine with `--sign-key` and attach the detached
+signatures to the GitHub release afterwards. The tag ruleset blocks later
+deletion or force-pushing of release tags.
+
 ## 2. Package contents
 
 | Path | Description |

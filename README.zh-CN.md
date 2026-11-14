@@ -2,6 +2,11 @@
 
 [English](README.md) | **简体中文**
 
+[![CI](https://github.com/UnmetDecade/linux-security-client/actions/workflows/ci.yml/badge.svg)](https://github.com/UnmetDecade/linux-security-client/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/UnmetDecade/linux-security-client/actions/workflows/codeql.yml/badge.svg)](https://github.com/UnmetDecade/linux-security-client/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2456c9)](https://unmetdecade.github.io/linux-security-client/index.zh-CN.html)
+
 lsec 是一个本地优先的 Linux 主机安全客户端：单实例守护进程统一管理 ClamAV、YARA、Lynis、Falco 与可选的本机 Wazuh Agent 接入，提供 Web 管理界面和 CLI。所有状态、扫描结果与风险结论都来自本机真实探测和真实任务执行。
 
 <p align="center">
@@ -179,7 +184,12 @@ PYTHONPATH=src python3 -m lsec.cli --server http://127.0.0.1:8080 --token "$(cat
 
 ```bash
 ./scripts/test.sh
+node scripts/check-web.js
 ```
+
+CI 在 Python 3.11 与 3.12 上运行测试，全局覆盖率门槛为 64%，并对 HTTP API、
+认证、事件映射、主机体检、YARA 校验、隔离区、Docker API 客户端与存储设置更严格的
+单文件门槛。Web job 同时检查翻译 key 对齐与文档链接。
 
 覆盖：
 
@@ -207,13 +217,14 @@ src/lsec/
   adapters/    Adapter 契约、ClamAV、Lynis、Falco、YARA、Wazuh、探测型组件适配器
   core/        扫描、主机检查与体检、容器检查、统一事件、YARA 规则包、Wazuh 接入、隔离、状态、自检、更新、维护
   api/         认证、HTTP 路由与 Web 静态资源
-  web/         index.html / style.css / app.js
+  web/         index.html / style.css / app.js / i18n.js
   daemon.py    守护进程入口
   cli/         lsec CLI
 packaging/     Dockerfile、只读 Docker 代理、容器配置、入口脚本、debian/ 打包元数据
 tests/         单元测试、集成测试
-docs/          架构、API、安全、部署、发布、测试说明与测试报告
-scripts/       测试、EICAR、E2E、发布构建/校验脚本
+scripts/       测试、覆盖率、Web/文档检查、EICAR、E2E、发布构建/校验脚本
+.github/       CI、CodeQL、Dependabot、issue 表单、PR 模板
+docs/          设计文档（英文 + .zh-CN）与 GitHub Pages 落地页
 ```
 
 ## 关键设计约束
@@ -253,6 +264,14 @@ scripts/       测试、EICAR、E2E、发布构建/校验脚本
 - Wazuh 只读取本地 Agent 与本地 `alerts.json`；Manager 连接状态无法从本客户端验证，界面始终显示“未验证”
 - `sigtool` 只能复核 `.cvd` 的 CVD 数字签名；`.cld` 目录格式没有 CVD 签名，会显示“未验证/不适用”
 - deb 包默认启动服务但不含 ClamAV/YARA/Lynis 二进制（Recommends）；首次扫描前需安装并等待病毒库下载
+
+## 项目与社区
+
+- [文档站点](https://unmetdecade.github.io/linux-security-client/index.zh-CN.html)（[English](https://unmetdecade.github.io/linux-security-client/)）
+- [更新日志](CHANGELOG.zh-CN.md) · [English](CHANGELOG.md)
+- [参与贡献](CONTRIBUTING.zh-CN.md) · [English](CONTRIBUTING.md)
+- [行为准则](CODE_OF_CONDUCT.zh-CN.md) · [English](CODE_OF_CONDUCT.md)
+- [安全策略与私密上报](SECURITY.zh-CN.md)
 
 ## 许可证
 

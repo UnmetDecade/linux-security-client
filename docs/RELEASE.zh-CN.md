@@ -40,6 +40,19 @@ dpkg-deb --info dist/lsec_0.4.0_all.deb
 
 > 未提供签名密钥时，`BUILD-MANIFEST.txt` 会记录 `signed=no`，`verify-release.sh` 会明确提示未签名。不要把未签名构建当作可信发布物分发。
 
+### 自动发布
+
+推送匹配 `v*` 的 tag 后，`.github/workflows/ci.yml` 中的 `release` job 会在所有检查
+通过后运行：使用无签名密钥的方式构建 deb 与源码归档，并自动生成发布说明上传：
+
+```bash
+git tag -a v0.4.0 -m "v0.4.0"
+git push origin v0.4.0
+```
+
+CI 不持有 GPG 私钥。若发布需要签名，请在可信机器上用 `--sign-key` 构建并签名，
+再把分离签名附加到 GitHub Release。tag 规则集会阻止后续删除或强推发布 tag。
+
 ## 2. 包内容
 
 | 路径 | 说明 |

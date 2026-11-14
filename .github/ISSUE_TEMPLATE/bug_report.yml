@@ -1,0 +1,70 @@
+name: Bug report
+description: Report reproducible incorrect behavior in lsec.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not include real access tokens, private
+        scan results, or unpatched vulnerability details here — use the
+        Security tab for that.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This report contains no tokens, secrets, or private host data.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: lsec version or commit
+      placeholder: "0.4.0, or the commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Docker / Docker Compose
+        - deb package on a Linux host
+        - Running from source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start lsec with ...
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and kernel, container runtime, and whether ClamAV/YARA/Lynis/Falco/Wazuh are installed.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Redact tokens, paths, and hostnames before pasting.
+      render: shell
+    validations:
+      required: false

@@ -14,7 +14,31 @@ PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 
 Requires Python 3.11+ (uses `tomllib` and `X | None` type syntax).
 
+Web assets, translation tables, and documentation links have a separate
+dependency-free check:
+
+```bash
+node scripts/check-web.js
+```
+
 ## 2. Coverage
+
+CI measures Python coverage and enforces a 64% global floor plus stricter
+per-file floors for the HTTP API, authentication, event mapping, host checks,
+YARA verification, quarantine, Docker API client, and storage:
+
+```bash
+PYTHONPATH=src python3 -m coverage run -m unittest discover -s tests -t .
+python3 -m coverage report --fail-under=64
+python3 -m coverage json -o coverage.json
+python3 scripts/check-coverage.py coverage.json
+```
+
+The thresholds live in `scripts/check-coverage.py` and are set slightly below
+the measured values, so a real regression fails the build without making
+unrelated changes brittle. New tests should prioritize network clients, data
+mapping, operation payloads, and shared UI building blocks before page-level
+behavior.
 
 ### Unit tests
 

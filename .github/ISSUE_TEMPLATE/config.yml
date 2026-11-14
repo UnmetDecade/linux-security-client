@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/UnmetDecade/linux-security-client/security/advisories/new
+    about: Report suspected vulnerabilities privately; do not open a public issue.
+  - name: Documentation
+    url: https://github.com/UnmetDecade/linux-security-client/tree/main/docs
+    about: Architecture, API, deployment, testing, and security model.

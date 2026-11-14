@@ -2,6 +2,11 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+[![CI](https://github.com/UnmetDecade/linux-security-client/actions/workflows/ci.yml/badge.svg)](https://github.com/UnmetDecade/linux-security-client/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/UnmetDecade/linux-security-client/actions/workflows/codeql.yml/badge.svg)](https://github.com/UnmetDecade/linux-security-client/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-2456c9)](https://unmetdecade.github.io/linux-security-client/)
+
 lsec is a local-first Linux host security client: a single-instance daemon that unifies ClamAV, YARA, Lynis, Falco, and optional integration with a local Wazuh Agent, exposed through a web UI and a CLI. Every status, scan result, and risk conclusion comes from real on-host probing and real task execution.
 
 <p align="center">
@@ -179,7 +184,13 @@ PYTHONPATH=src python3 -m lsec.cli --server http://127.0.0.1:8080 --token "$(cat
 
 ```bash
 ./scripts/test.sh
+node scripts/check-web.js
 ```
+
+CI runs the suite on Python 3.11 and 3.12 with a 64% global coverage floor and
+stricter per-file floors for the HTTP API, authentication, event mapping, host
+checks, YARA verification, quarantine, Docker API client, and storage. The web
+job also checks translation-key parity and the documentation links.
 
 Coverage includes:
 
@@ -207,13 +218,14 @@ src/lsec/
   adapters/    adapter contracts, ClamAV, Lynis, Falco, YARA, Wazuh, probing component adapters
   core/        scanning, host checks and audit, container checks, unified events, YARA rule packs, Wazuh ingestion, quarantine, status, self-check, updates, maintenance
   api/         auth, HTTP routes, and web static assets
-  web/         index.html / style.css / app.js
+  web/         index.html / style.css / app.js / i18n.js
   daemon.py    daemon entry point
   cli/         lsec CLI
 packaging/     Dockerfile, read-only Docker proxy, container config, entrypoint, debian/ packaging metadata
 tests/         unit and integration tests
-docs/          architecture, API, security, deployment, release, testing, and test report
-scripts/       test, EICAR, E2E, release build/verification scripts
+scripts/       test, release, coverage, web/documentation checks, EICAR helpers
+.github/       CI, CodeQL, Dependabot, issue forms, pull request template
+docs/          design documents (English + .zh-CN) and the GitHub Pages landing page
 ```
 
 ## Key design constraints
@@ -253,6 +265,14 @@ Further reading:
 - Wazuh reads only the local Agent and local `alerts.json`; Manager connectivity cannot be verified from this client and the UI always shows "unverified"
 - `sigtool` can only verify the CVD signature of `.cvd` files; `.cld` directory format has no CVD signature and shows "unverified/not applicable"
 - The deb package starts the service by default but does not bundle ClamAV/YARA/Lynis binaries (Recommends); install them and wait for signature downloads before the first scan
+
+## Project and community
+
+- [Documentation site](https://unmetdecade.github.io/linux-security-client/) ([中文](https://unmetdecade.github.io/linux-security-client/index.zh-CN.html))
+- [Changelog](CHANGELOG.md) · [中文](CHANGELOG.zh-CN.md)
+- [Contributing](CONTRIBUTING.md) · [中文](CONTRIBUTING.zh-CN.md)
+- [Code of conduct](CODE_OF_CONDUCT.md) · [中文](CODE_OF_CONDUCT.zh-CN.md)
+- [Security policy and private reporting](SECURITY.md)
 
 ## License
 

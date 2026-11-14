@@ -1,0 +1,2 @@
+# lsec runs on the Python standard library only.
+# There are no runtime third-party dependencies.
