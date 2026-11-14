@@ -1,2 +1,2 @@
-coverage>=7.6,<8
+coverage>=7.17.2,<8
 pip-audit>=2.7,<3
