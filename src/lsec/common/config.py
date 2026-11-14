@@ -332,24 +332,24 @@ _ALLOWED_SECTIONS: dict[str, set[str]] = {
 
 def _check_type(section: str, key: str, value: Any, expected: type) -> None:
     if expected is int and (isinstance(value, bool) or not isinstance(value, int)):
-        raise ConfigError(f"[{section}].{key} 必须是整数")
+        raise ConfigError(f"[{section}].{key} must be an integer")
     if expected is bool and not isinstance(value, bool):
-        raise ConfigError(f"[{section}].{key} 必须是布尔值")
+        raise ConfigError(f"[{section}].{key} must be a boolean")
     if expected is str and not isinstance(value, str):
-        raise ConfigError(f"[{section}].{key} 必须是字符串")
+        raise ConfigError(f"[{section}].{key} must be a string")
     if expected is list and not isinstance(value, list):
-        raise ConfigError(f"[{section}].{key} 必须是数组")
+        raise ConfigError(f"[{section}].{key} must be an array")
 
 
 def _str_tuple(section: str, key: str, value: Any) -> tuple[str, ...]:
     if not isinstance(value, str) and not isinstance(value, list):
-        raise ConfigError(f"[{section}].{key} 必须是字符串数组")
+        raise ConfigError(f"[{section}].{key} must be a string array")
     items = [value] if isinstance(value, str) else value
     if not items or not all(isinstance(item, str) and item for item in items):
-        raise ConfigError(f"[{section}].{key} 不能为空且只能包含字符串")
+        raise ConfigError(f"[{section}].{key} must not be empty and may only contain strings")
     for item in items:
         if not item.startswith("/"):
-            raise ConfigError(f"[{section}].{key} 中的路径必须是绝对路径: {item}")
+            raise ConfigError(f"[{section}].{key} paths must be absolute: {item}")
     return tuple(items)
 
 
@@ -364,17 +364,17 @@ def load_config(path: str | None = None) -> Config:
             with p.open("rb") as fh:
                 raw = tomllib.load(fh)
         except (OSError, tomllib.TOMLDecodeError) as exc:
-            raise ConfigError(f"无法读取配置 {config_path}: {exc}") from exc
+            raise ConfigError(f"cannot read configuration {config_path}: {exc}") from exc
         loaded = True
 
     for section, values in raw.items():
         if section not in _ALLOWED_SECTIONS:
-            raise ConfigError(f"未知配置段: [{section}]")
+            raise ConfigError(f"unknown configuration section: [{section}]")
         if not isinstance(values, dict):
-            raise ConfigError(f"[{section}] 必须是表")
+            raise ConfigError(f"[{section}] must be a table")
         for key in values:
             if key not in _ALLOWED_SECTIONS[section]:
-                raise ConfigError(f"未知配置项: [{section}].{key}")
+                raise ConfigError(f"unknown configuration key: [{section}].{key}")
 
     server = ServerConfig(**raw.get("server", {}))
     storage = StorageConfig(**raw.get("storage", {}))
@@ -467,73 +467,73 @@ def load_config(path: str | None = None) -> Config:
         _check_type(section, key, getattr(table, key), typ)
 
     if not 1 <= server.port <= 65535:
-        raise ConfigError("server.port 必须在 1-65535 之间")
+        raise ConfigError("server.port must be between 1 and 65535")
     if not 1 <= scan.max_parallel_tasks <= 4:
-        raise ConfigError("scan.max_parallel_tasks 必须在 1-4 之间")
+        raise ConfigError("scan.max_parallel_tasks must be between 1 and 4")
     if not 10 <= audit.lynis_timeout_seconds <= 1800:
-        raise ConfigError("audit.lynis_timeout_seconds 必须在 10-1800 之间")
+        raise ConfigError("audit.lynis_timeout_seconds must be between 10 and 1800")
     if not 1 <= audit.stale_after_hours <= 8760:
-        raise ConfigError("audit.stale_after_hours 必须在 1-8760 之间")
+        raise ConfigError("audit.stale_after_hours must be between 1 and 8760")
     if not 1 <= audit.max_findings <= 500:
-        raise ConfigError("audit.max_findings 必须在 1-500 之间")
+        raise ConfigError("audit.max_findings must be between 1 and 500")
     if containers.enabled:
         if not containers.api_url:
-            raise ConfigError("containers.enabled 为 true 时必须配置 containers.api_url")
+            raise ConfigError("containers.api_url is required when containers.enabled is true")
         if not (
             containers.api_url.startswith("unix://")
             or containers.api_url.startswith("http://")
         ):
-            raise ConfigError("containers.api_url 只支持 unix:// 或 http:// 地址")
+            raise ConfigError("containers.api_url supports only unix:// or http:// addresses")
         if containers.api_url.startswith("unix://") and not containers.api_url[len("unix://"):].startswith("/"):
-            raise ConfigError("containers.api_url 的 Unix Socket 路径必须是绝对路径")
+            raise ConfigError("the Unix socket path in containers.api_url must be absolute")
         if containers.api_url.startswith("http://"):
             from urllib.parse import urlsplit
 
             parsed = urlsplit(containers.api_url)
             if not parsed.hostname or parsed.username or parsed.password or parsed.query:
-                raise ConfigError("containers.api_url 的 HTTP 地址不合法")
+                raise ConfigError("invalid HTTP address in containers.api_url")
     if not 2 <= containers.timeout_seconds <= 30:
-        raise ConfigError("containers.timeout_seconds 必须在 2-30 之间")
+        raise ConfigError("containers.timeout_seconds must be between 2 and 30")
     if not 15 <= containers.refresh_seconds <= 3600:
-        raise ConfigError("containers.refresh_seconds 必须在 15-3600 之间")
+        raise ConfigError("containers.refresh_seconds must be between 15 and 3600")
     if not 1 <= containers.max_containers <= 1000:
-        raise ConfigError("containers.max_containers 必须在 1-1000 之间")
+        raise ConfigError("containers.max_containers must be between 1 and 1000")
     if not 4096 <= falco.max_event_bytes <= 262144:
-        raise ConfigError("falco.max_event_bytes 必须在 4096-262144 之间")
+        raise ConfigError("falco.max_event_bytes must be between 4096 and 262144")
     if not 1 <= yara.max_pack_mb <= 200:
-        raise ConfigError("yara.max_pack_mb 必须在 1-200 之间")
+        raise ConfigError("yara.max_pack_mb must be between 1 and 200")
     if not 1 <= yara.max_rule_files <= 1000:
-        raise ConfigError("yara.max_rule_files 必须在 1-1000 之间")
+        raise ConfigError("yara.max_rule_files must be between 1 and 1000")
     if not 1 <= yara.scan_batch_files <= 500:
-        raise ConfigError("yara.scan_batch_files 必须在 1-500 之间")
+        raise ConfigError("yara.scan_batch_files must be between 1 and 500")
     if not 10 <= yara.scan_timeout_seconds <= 1800:
-        raise ConfigError("yara.scan_timeout_seconds 必须在 10-1800 之间")
+        raise ConfigError("yara.scan_timeout_seconds must be between 10 and 1800")
     for name in ("rules_dir", "inbox_dir"):
         if not str(getattr(yara, name)).startswith("/"):
-            raise ConfigError(f"yara.{name} 必须是绝对路径")
+            raise ConfigError(f"yara.{name} must be an absolute path")
     if yara.public_key and not yara.public_key.startswith("/"):
-        raise ConfigError("yara.public_key 必须为空或绝对路径")
+        raise ConfigError("yara.public_key must be empty or an absolute path")
     yara_root = os.path.normpath(yara.rules_dir)
     inbox = os.path.normpath(yara.inbox_dir)
     if os.path.commonpath([yara_root, inbox]) != yara_root:
-        raise ConfigError("yara.inbox_dir 必须位于 yara.rules_dir 内")
+        raise ConfigError("yara.inbox_dir must be inside yara.rules_dir")
     if not 5 <= wazuh.poll_seconds <= 3600:
-        raise ConfigError("wazuh.poll_seconds 必须在 5-3600 之间")
+        raise ConfigError("wazuh.poll_seconds must be between 5 and 3600")
     if not 4096 <= wazuh.max_event_bytes <= 262144:
-        raise ConfigError("wazuh.max_event_bytes 必须在 4096-262144 之间")
+        raise ConfigError("wazuh.max_event_bytes must be between 4096 and 262144")
     if not 65536 <= wazuh.max_read_bytes <= 16 * 1024 * 1024:
-        raise ConfigError("wazuh.max_read_bytes 必须在 65536-16777216 之间")
+        raise ConfigError("wazuh.max_read_bytes must be between 65536 and 16777216")
     for name in ("install_dir", "alerts_path", "state_dir"):
         if not str(getattr(wazuh, name)).startswith("/"):
-            raise ConfigError(f"wazuh.{name} 必须是绝对路径")
+            raise ConfigError(f"wazuh.{name} must be an absolute path")
     if wazuh.ingest_enabled and not wazuh.enabled:
-        raise ConfigError("wazuh.ingest_enabled 为 true 时必须同时启用 wazuh.enabled")
+        raise ConfigError("wazuh.enabled must also be enabled when wazuh.ingest_enabled is true")
     if response.default_mode not in {"alert", "suggest", "auto"}:
-        raise ConfigError("response.default_mode 只能是 alert/suggest/auto")
+        raise ConfigError("response.default_mode must be one of alert/suggest/auto")
     if bool(server.tls_cert) != bool(server.tls_key):
-        raise ConfigError("server.tls_cert 和 server.tls_key 必须同时配置")
+        raise ConfigError("server.tls_cert and server.tls_key must be configured together")
     if not storage.data_dir.startswith("/"):
-        raise ConfigError("storage.data_dir 必须是绝对路径")
+        raise ConfigError("storage.data_dir must be an absolute path")
 
     cfg = Config(
         server=server,

@@ -289,7 +289,7 @@ class YaraApiTests(unittest.TestCase):
         self.assertEqual(event["severity"], "medium")
         self.assertEqual(event["occurrences"], 2)
         self.assertEqual(event["target"].get("path"), str(target))
-        self.assertIn("不等同", event["description"])
+        self.assertIn("not equivalent", event["description"])
 
         status, payload, _ = self.admin.json("GET", "/api/v1/quarantine")
         self.assertEqual(status, 200)

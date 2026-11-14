@@ -22,15 +22,15 @@ from .events import EventService
 log = get_logger("core.containers")
 
 SCOPE_NOTE = (
-    "容器清单来自 Docker Engine API；只能看到该 API 所连接的容器运行时。"
-    "Containerd 当前仅探测安装与 Socket，不采集容器清单。"
+    "Container inventory comes from the Docker Engine API; only the container runtime connected to that API is visible. "
+    "Containerd is currently only probed for installation and socket presence; container inventory is not collected."
 )
 LIMITATIONS = [
-    "容器监控通过只读 Docker API 代理读取，Web 进程不直接挂载 Docker Socket。",
-    "只有运行中的容器会生成配置风险事件；已停止容器的配置仍会显示在清单中。",
-    "本客户端不会自动停止、重启、删除或修改任何容器。",
-    "配置检查是启发式规则，不等同于漏洞扫描或运行时行为检测。",
-    "Falco 事件通过独立接入令牌写入统一事件中心；未安装 Falco 时不会伪造运行时告警。",
+    "Container monitoring reads through a read-only Docker API proxy; the Web process does not mount the Docker Socket directly.",
+    "Only running containers generate configuration risk events; configuration of stopped containers is still shown in the inventory.",
+    "This client never stops, restarts, deletes or modifies any container automatically.",
+    "Configuration checks are heuristic rules and are not equivalent to vulnerability scanning or runtime behavior detection.",
+    "Falco events are written to the unified event center through a separate integration token; when Falco is not installed, runtime alerts are never fabricated.",
 ]
 
 
@@ -49,9 +49,9 @@ class ContainerService:
         self._known_risks: set[tuple[str, str]] = set()
         self._snapshot: dict[str, Any] = self._empty_snapshot(
             "disabled" if not config.enabled else "initializing",
-            "容器监控未启用"
+            "container monitoring is not enabled"
             if not config.enabled
-            else "尚未完成首次容器采集",
+            else "initial container inventory has not been collected yet",
         )
 
     # ----------------------------------------------------------------- state
@@ -97,7 +97,7 @@ class ContainerService:
     def get(self, container_ref: str) -> dict[str, Any]:
         snapshot = self.snapshot()
         if snapshot["state"] == "disabled":
-            raise not_found("容器监控未启用，没有容器清单")
+            raise not_found("container monitoring is not enabled; there is no container inventory")
         containers = snapshot.get("containers") or []
         exact = [
             item
@@ -115,8 +115,8 @@ class ContainerService:
         if len(prefix) == 1:
             return prefix[0]
         if len(prefix) > 1:
-            raise conflict("容器 ID 前缀不唯一，请提供更完整的 ID")
-        raise not_found("未找到容器")
+            raise conflict("container ID prefix is not unique; provide a longer ID")
+        raise not_found("container not found")
 
     # ---------------------------------------------------------------- thread
     def start(self) -> None:
@@ -141,7 +141,7 @@ class ContainerService:
             try:
                 self.refresh()
             except Exception:
-                log.exception("容器监控刷新异常")
+                log.exception("container monitoring refresh error")
             if self._stop.wait(max(15, self.config.refresh_seconds)):
                 break
 
@@ -150,7 +150,7 @@ class ContainerService:
         if not self.config.enabled:
             with self._lock:
                 self._snapshot = self._empty_snapshot(
-                    "disabled", "容器监控未启用"
+                    "disabled", "container monitoring is not enabled"
                 )
             return self.snapshot()
 
@@ -173,11 +173,11 @@ class ContainerService:
                 note = self._monitored_note(summary)
                 if inspect_errors:
                     state = "degraded"
-                    note += f"；{len(inspect_errors)} 个容器详情读取失败，风险结论不完整"
+                    note += f"; details for {len(inspect_errors)} containers could not be read, so risk conclusions are incomplete"
                 if truncated:
                     state = "degraded"
                     note += (
-                        f"；容器数量超过上限 {self.config.max_containers}，清单已截断"
+                        f"; container count exceeds the limit of {self.config.max_containers}; the inventory was truncated"
                     )
                 snapshot = {
                     "state": state,
@@ -199,7 +199,7 @@ class ContainerService:
                 with self._lock:
                     self._snapshot = snapshot
                 log.info(
-                    "容器清单刷新完成 total=%s running=%s risky=%s state=%s",
+                    "container inventory refresh complete total=%s running=%s risky=%s state=%s",
                     summary["total"],
                     summary["running"],
                     summary["risky"],
@@ -209,7 +209,7 @@ class ContainerService:
             except DockerApiError as exc:
                 return self._record_failure(previous, exc.code, exc.message)
             except Exception as exc:  # a broken monitor must not crash the daemon
-                log.exception("容器监控失败")
+                log.exception("container monitoring failed")
                 return self._record_failure(previous, "internal_error", str(exc)[:500])
 
     def _record_failure(
@@ -229,8 +229,8 @@ class ContainerService:
             {
                 "state": state,
                 "note": (
-                    f"容器监控失败：{message}"
-                    + ("；下方为上次成功采集的数据，已标记为过期" if has_old else "")
+                    f"container monitoring failed: {message}"
+                    + ("; the data below is from the last successful collection and is marked stale" if has_old else "")
                 ),
                 "error_code": code,
                 "error": message,
@@ -247,7 +247,7 @@ class ContainerService:
             snapshot["last_success_at"] = None
         with self._lock:
             self._snapshot = snapshot
-        log.warning("容器监控不可用 state=%s code=%s error=%s", state, code, message)
+        log.warning("container monitoring unavailable state=%s code=%s error=%s", state, code, message)
         return self.snapshot()
 
     def _inspect_all(
@@ -303,7 +303,7 @@ class ContainerService:
                         "risk_level": "unknown",
                         "risk_count": 0,
                         "evaluated": False,
-                        "evaluation_error": f"读取容器详情失败：{exc.message[:300]}",
+                        "evaluation_error": f"failed to read container details: {exc.message[:300]}",
                     }
                 )
         return containers, errors
@@ -372,11 +372,11 @@ class ContainerService:
     @staticmethod
     def _monitored_note(summary: dict[str, Any]) -> str:
         note = (
-            f"已读取 {summary['total']} 个容器，运行中 {summary['running']} 个；"
-            f"{summary['risky']} 个存在配置风险"
+            f"read {summary['total']} containers, {summary['running']} running; "
+            f"{summary['risky']} have configuration risks"
         )
         if summary["unknown"]:
-            note += f"，{summary['unknown']} 个无法评估"
+            note += f", {summary['unknown']} could not be evaluated"
         return note
 
     def _ingest_risks(self, containers: list[dict[str, Any]]) -> dict[str, int]:
@@ -403,12 +403,12 @@ class ContainerService:
                         source="docker",
                         category="configuration",
                         severity=str(finding.get("severity") or "medium"),
-                        title=str(finding.get("title") or "容器配置风险"),
+                        title=str(finding.get("title") or "container configuration risk"),
                         description=(
-                            f"容器 {container.get('name')}（镜像 {container.get('image')}，"
-                            f"状态 {container.get('state')}）存在配置风险："
+                            f"Container {container.get('name')} (image {container.get('image')}, "
+                            f"state {container.get('state')}) has a configuration risk: "
                             f"{finding.get('description')} "
-                            "本客户端不会自动停止或修改该容器。"
+                            "This client will not stop or modify the container automatically."
                         ),
                         check_id=key,
                         target={
@@ -426,9 +426,9 @@ class ContainerService:
                             "details": finding.get("evidence") or {},
                         },
                         recommended_actions=[
-                            str(finding.get("recommendation") or "核实容器配置"),
-                            "在确认影响前不要直接停止生产容器",
-                            "保留容器与镜像信息作为处置证据",
+                            str(finding.get("recommendation") or "verify the container configuration"),
+                            "do not stop production containers before confirming the impact",
+                            "keep the container and image information as remediation evidence",
                         ],
                         dedup_hint=f"{container_id}:{key}",
                         source_ref={
@@ -445,7 +445,7 @@ class ContainerService:
                 except Exception:
                     errors += 1
                     log.exception(
-                        "容器风险事件写入失败 container=%s rule=%s",
+                        "failed to write container risk event container=%s rule=%s",
                         container.get("name"),
                         finding.get("rule_id"),
                     )

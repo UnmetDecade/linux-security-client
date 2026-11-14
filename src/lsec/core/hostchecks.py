@@ -69,14 +69,14 @@ def _read(path: str, *, limit: int = _MAX_FILE) -> tuple[str | None, str | None]
     except FileNotFoundError:
         return None, "missing"
     except OSError as exc:
-        return None, f"无法读取 {path}: {exc}"
+        return None, f"cannot read {path}: {exc}"
     if not stat.S_ISREG(st.st_mode):
-        return None, f"{path} 不是普通文件"
+        return None, f"{path} is not a regular file"
     try:
         with open(path, "rb") as fh:
             return fh.read(limit).decode("utf-8", errors="replace"), None
     except OSError as exc:
-        return None, f"无法读取 {path}: {exc}"
+        return None, f"cannot read {path}: {exc}"
 
 
 def _result(
@@ -236,9 +236,9 @@ def parse_ssh_config(
                 continue
             values[key] = parts[1].strip().strip('"')
     if saw_match:
-        notes.append("Match 条件块未纳入全局结论")
+        notes.append("Match blocks were not included in the global conclusion")
     if len(files) > 1:
-        notes.append("已合并 sshd_config.d/*.conf；未完整展开 Include 位置语义")
+        notes.append("sshd_config.d/*.conf files were merged; Include positional semantics were not fully expanded")
     return values, notes
 
 
@@ -249,9 +249,9 @@ def _check_uid0(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-UID0",
                 "users",
-                "UID 0 账户检查",
+                "UID 0 account check",
                 ERROR,
-                detail=f"无法读取 /etc/passwd: {error}",
+                detail=f"cannot read /etc/passwd: {error}",
             )
         ]
     entries, malformed = parse_passwd(text)
@@ -260,9 +260,9 @@ def _check_uid0(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-UID0",
                 "users",
-                "UID 0 账户检查",
+                "UID 0 account check",
                 ERROR,
-                detail=f"/etc/passwd 无有效账户记录（格式异常 {malformed} 行）",
+                detail=f"/etc/passwd has no valid account records ({malformed} malformed lines)",
             )
         ]
     roots = [entry["name"] for entry in entries if entry["uid"] == "0"]
@@ -272,11 +272,11 @@ def _check_uid0(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-UID0",
                 "users",
-                "发现额外的 UID 0 账户",
+                "Additional UID 0 account found",
                 FINDING,
                 severity="high",
-                detail=f"除 root 外存在 UID 0 账户: {', '.join(extras)}",
-                remediation="核实这些账户的来源，移除不需要的特权账户，并审计其登录记录。",
+                detail=f"UID 0 account exists besides root: {', '.join(extras)}",
+                remediation="Verify the origin of these accounts, remove unneeded privileged accounts, and audit their login records.",
                 target={"type": "user", "name": name},
                 evidence={"accounts": extras},
                 dedup_hint=f"uid0:{name}",
@@ -287,9 +287,9 @@ def _check_uid0(root: str) -> list[CheckResult]:
         _result(
             "AUTH-UID0",
             "users",
-            "UID 0 账户检查",
+            "UID 0 account check",
             PASS,
-            detail="仅 root 拥有 UID 0",
+            detail="only root has UID 0",
         )
     ]
 
@@ -302,18 +302,18 @@ def _check_empty_passwords(root: str) -> list[CheckResult]:
                 _result(
                     "AUTH-EMPTY-PASSWORD",
                     "users",
-                    "空密码账户检查",
+                    "Empty password account check",
                     SKIPPED,
-                    detail="/etc/shadow 不存在，未评估空密码账户",
+                    detail="/etc/shadow does not exist; empty password accounts were not evaluated",
                 )
             ]
         return [
             _result(
                 "AUTH-EMPTY-PASSWORD",
                 "users",
-                "空密码账户检查",
+                "Empty password account check",
                 ERROR,
-                detail=f"无法读取 /etc/shadow: {error}",
+                detail=f"cannot read /etc/shadow: {error}",
             )
         ]
     empty = [entry["name"] for entry in parse_shadow(text) if entry["password"] == ""]
@@ -322,11 +322,11 @@ def _check_empty_passwords(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-EMPTY-PASSWORD",
                 "users",
-                "发现空密码账户",
+                "Empty password account found",
                 FINDING,
                 severity="critical",
-                detail=f"以下账户的密码字段为空: {', '.join(empty)}",
-                remediation="立即为账户设置强密码或锁定账户，并检查认证日志。",
+                detail=f"the following accounts have an empty password field: {', '.join(empty)}",
+                remediation="Set a strong password or lock these accounts immediately, and check the authentication logs.",
                 target={"type": "user", "name": name},
                 evidence={"accounts": empty},
                 dedup_hint=f"empty-password:{name}",
@@ -337,9 +337,9 @@ def _check_empty_passwords(root: str) -> list[CheckResult]:
         _result(
             "AUTH-EMPTY-PASSWORD",
             "users",
-            "空密码账户检查",
+            "Empty password account check",
             PASS,
-            detail="未发现空密码账户（仅检查密码字段是否为空，不读取哈希内容）",
+            detail="no empty password accounts found (only the password field is checked; hash contents are not read)",
         )
     ]
 
@@ -351,9 +351,9 @@ def _check_duplicate_uid(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-DUPLICATE-UID",
                 "users",
-                "重复 UID 检查",
+                "Duplicate UID check",
                 ERROR,
-                detail=f"无法读取 /etc/passwd: {error}",
+                detail=f"cannot read /etc/passwd: {error}",
             )
         ]
     entries, _malformed = parse_passwd(text)
@@ -368,14 +368,14 @@ def _check_duplicate_uid(root: str) -> list[CheckResult]:
             _result(
                 "AUTH-DUPLICATE-UID",
                 "users",
-                "发现重复的非 root UID",
+                "Duplicate non-root UIDs found",
                 FINDING,
                 severity="medium",
-                detail="；".join(
+                detail="; ".join(
                     f"UID {uid}: {', '.join(names)}"
                     for uid, names in sorted(duplicates.items())
                 ),
-                remediation="确认共享 UID 是否为预期配置；非预期时改为独立 UID 并检查文件属主。",
+                remediation="Confirm whether shared UIDs are an intended configuration; if not, assign distinct UIDs and check file ownership.",
                 evidence={
                     "duplicates": [
                         {"uid": uid, "accounts": names}
@@ -389,9 +389,9 @@ def _check_duplicate_uid(root: str) -> list[CheckResult]:
         _result(
             "AUTH-DUPLICATE-UID",
             "users",
-            "重复 UID 检查",
+            "Duplicate UID check",
             PASS,
-            detail="未发现重复的非 root UID",
+            detail="no duplicate non-root UIDs found",
         )
     ]
 
@@ -407,7 +407,7 @@ def _file_mode_finding(
     except OSError as exc:
         return f"{path}: {exc}"
     if not stat.S_ISREG(st.st_mode):
-        return f"{path}: 不是普通文件"
+        return f"{path}: not a regular file"
     mode = stat.S_IMODE(st.st_mode)
     if mode & forbidden_mask:
         return _result(
@@ -416,8 +416,8 @@ def _file_mode_finding(
             title,
             FINDING,
             severity=severity,
-            detail=f"{path} 权限为 {mode:04o}，包含不安全的组/其他用户访问位",
-            remediation=f"将 {path} 权限收紧到发行版推荐值，并检查属主。",
+            detail=f"{path} permissions are {mode:04o} and include unsafe group/other access bits",
+            remediation=f"Tighten {path} permissions to the distribution-recommended value and check ownership.",
             target={"type": "file", "path": path},
             evidence={"path": path, "mode": f"{mode:04o}", "forbidden_mask": f"{forbidden_mask:04o}"},
             dedup_hint=f"perm:{path}",
@@ -427,10 +427,10 @@ def _file_mode_finding(
 
 def _check_sensitive_permissions(root: str) -> list[CheckResult]:
     specs = (
-        ("/etc/passwd", 0o022, "high", "敏感账户文件可被组或其他用户写入"),
-        ("/etc/group", 0o022, "high", "敏感组文件可被组或其他用户写入"),
-        ("/etc/shadow", 0o026, "high", "密码哈希文件权限过宽"),
-        ("/etc/gshadow", 0o026, "high", "组密码文件权限过宽"),
+        ("/etc/passwd", 0o022, "high", "sensitive account file is writable by group or other users"),
+        ("/etc/group", 0o022, "high", "sensitive group file is writable by group or other users"),
+        ("/etc/shadow", 0o026, "high", "password hash file permissions are too broad"),
+        ("/etc/gshadow", 0o026, "high", "group password file permissions are too broad"),
     )
     findings: list[CheckResult] = []
     errors: list[str] = []
@@ -457,9 +457,9 @@ def _check_sensitive_permissions(root: str) -> list[CheckResult]:
             _result(
                 "PERM-SENSITIVE-FILE",
                 "permissions",
-                "敏感文件权限检查",
+                "Sensitive file permission check",
                 ERROR,
-                detail="；".join(errors),
+                detail="; ".join(errors),
             )
         )
     if not findings and not errors:
@@ -468,9 +468,9 @@ def _check_sensitive_permissions(root: str) -> list[CheckResult]:
                 _result(
                     "PERM-SENSITIVE-FILE",
                     "permissions",
-                    "敏感文件权限检查",
+                    "Sensitive file permission check",
                     PASS,
-                    detail=f"已检查 {checked} 个文件，未发现组/其他用户可写或密码文件可读",
+                    detail=f"checked {checked} files; no group/other writable or password-file readable issues found",
                 )
             )
         else:
@@ -478,9 +478,9 @@ def _check_sensitive_permissions(root: str) -> list[CheckResult]:
                 _result(
                     "PERM-SENSITIVE-FILE",
                     "permissions",
-                    "敏感文件权限检查",
+                    "Sensitive file permission check",
                     SKIPPED,
-                    detail="/etc/passwd、/etc/shadow 等文件均不存在",
+                    detail="/etc/passwd, /etc/shadow and similar files do not exist",
                 )
             )
     return results
@@ -489,14 +489,14 @@ def _check_sensitive_permissions(root: str) -> list[CheckResult]:
 def _check_ssh(root: str) -> list[CheckResult]:
     files, notes = _ssh_config_texts(root)
     if not files:
-        detail = "未找到 /etc/ssh/sshd_config；未安装 OpenSSH 服务端或容器未挂载配置，未评估 SSH 基线"
+        detail = "no /etc/ssh/sshd_config found; the OpenSSH server is not installed or the container has not mounted the configuration, so the SSH baseline was not evaluated"
         if notes:
-            detail += f"（{'; '.join(notes)}）"
+            detail += f" ({'; '.join(notes)})"
         return [
             _result(
                 "SSH-BASELINE",
                 "ssh",
-                "SSH 基线检查",
+                "SSH baseline check",
                 SKIPPED,
                 detail=detail,
             )
@@ -504,7 +504,7 @@ def _check_ssh(root: str) -> list[CheckResult]:
     values, parse_notes = parse_ssh_config(files)
     notes.extend(parse_notes)
     results: list[CheckResult] = []
-    suffix = f"（限制: {'; '.join(notes)}）" if notes else ""
+    suffix = f" (limitations: {'; '.join(notes)})" if notes else ""
 
     root_login = values.get("permitrootlogin")
     if root_login is None:
@@ -512,9 +512,9 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-ROOT-LOGIN",
                 "ssh",
-                "SSH root 登录检查",
+                "SSH root login check",
                 SKIPPED,
-                detail="未显式配置 PermitRootLogin，未展开全部 Include/Match 语义，不下结论" + suffix,
+                detail="PermitRootLogin is not explicitly configured; Include/Match semantics were not fully expanded, so no conclusion is drawn" + suffix,
             )
         )
     elif root_login.lower() == "yes":
@@ -522,11 +522,11 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-ROOT-LOGIN",
                 "ssh",
-                "SSH 允许 root 直接登录",
+                "SSH allows direct root login",
                 FINDING,
                 severity="high",
                 detail="PermitRootLogin yes" + suffix,
-                remediation="将 PermitRootLogin 设为 no 或 prohibit-password，并重载 sshd。",
+                remediation="Set PermitRootLogin to no or prohibit-password, and reload sshd.",
                 target={"type": "config", "path": "/etc/ssh/sshd_config"},
                 evidence={"directive": "PermitRootLogin", "value": root_login},
                 dedup_hint="ssh:permitrootlogin",
@@ -537,7 +537,7 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-ROOT-LOGIN",
                 "ssh",
-                "SSH root 登录检查",
+                "SSH root login check",
                 PASS,
                 detail=f"PermitRootLogin {root_login}" + suffix,
             )
@@ -549,9 +549,9 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-PASSWORD-AUTH",
                 "ssh",
-                "SSH 密码认证检查",
+                "SSH password authentication check",
                 SKIPPED,
-                detail="未显式配置 PasswordAuthentication，不下结论" + suffix,
+                detail="PasswordAuthentication is not explicitly configured; no conclusion is drawn" + suffix,
             )
         )
     elif password_auth.lower() == "yes":
@@ -559,11 +559,11 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-PASSWORD-AUTH",
                 "ssh",
-                "SSH 启用密码认证",
+                "SSH password authentication enabled",
                 FINDING,
                 severity="medium",
-                detail="PasswordAuthentication yes；如无必要，建议改用密钥认证" + suffix,
-                remediation="确认业务需要后保留；否则设置 PasswordAuthentication no 并配置密钥登录。",
+                detail="PasswordAuthentication yes; prefer key-based authentication if not required" + suffix,
+                remediation="Keep this only if the business requires it; otherwise set PasswordAuthentication no and configure key-based login.",
                 target={"type": "config", "path": "/etc/ssh/sshd_config"},
                 evidence={"directive": "PasswordAuthentication", "value": password_auth},
                 dedup_hint="ssh:passwordauthentication",
@@ -574,7 +574,7 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-PASSWORD-AUTH",
                 "ssh",
-                "SSH 密码认证检查",
+                "SSH password authentication check",
                 PASS,
                 detail=f"PasswordAuthentication {password_auth}" + suffix,
             )
@@ -586,9 +586,9 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-EMPTY-PASSWORDS",
                 "ssh",
-                "SSH 空密码登录检查",
+                "SSH empty password login check",
                 SKIPPED,
-                detail="未显式配置 PermitEmptyPasswords，不下结论" + suffix,
+                detail="PermitEmptyPasswords is not explicitly configured; no conclusion is drawn" + suffix,
             )
         )
     elif empty.lower() == "yes":
@@ -596,11 +596,11 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-EMPTY-PASSWORDS",
                 "ssh",
-                "SSH 允许空密码登录",
+                "SSH allows empty password login",
                 FINDING,
                 severity="critical",
                 detail="PermitEmptyPasswords yes" + suffix,
-                remediation="立即设置 PermitEmptyPasswords no，并锁定空密码账户。",
+                remediation="Set PermitEmptyPasswords no immediately and lock accounts with empty passwords.",
                 target={"type": "config", "path": "/etc/ssh/sshd_config"},
                 evidence={"directive": "PermitEmptyPasswords", "value": empty},
                 dedup_hint="ssh:permitemptypasswords",
@@ -611,7 +611,7 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-EMPTY-PASSWORDS",
                 "ssh",
-                "SSH 空密码登录检查",
+                "SSH empty password login check",
                 PASS,
                 detail=f"PermitEmptyPasswords {empty}" + suffix,
             )
@@ -626,11 +626,11 @@ def _check_ssh(root: str) -> list[CheckResult]:
                 _result(
                     "SSH-CONFIG-PERMS",
                     "ssh",
-                    "SSH 配置文件权限过宽",
+                    "SSH configuration file permissions are too broad",
                     FINDING,
                     severity="medium",
-                    detail=f"/etc/ssh/sshd_config 权限为 {mode:04o}，组或其他用户可写",
-                    remediation="执行 chmod 600 /etc/ssh/sshd_config（属主 root）并检查是否被篡改。",
+                    detail=f"/etc/ssh/sshd_config permissions are {mode:04o}; group or other users can write to it",
+                    remediation="Run chmod 600 /etc/ssh/sshd_config (owned by root) and check whether it has been tampered with.",
                     target={"type": "file", "path": "/etc/ssh/sshd_config"},
                     evidence={"mode": f"{mode:04o}"},
                     dedup_hint="ssh:config-perms",
@@ -641,9 +641,9 @@ def _check_ssh(root: str) -> list[CheckResult]:
                 _result(
                     "SSH-CONFIG-PERMS",
                     "ssh",
-                    "SSH 配置文件权限检查",
+                    "SSH configuration file permission check",
                     PASS,
-                    detail=f"/etc/ssh/sshd_config 权限 {mode:04o}",
+                    detail=f"/etc/ssh/sshd_config permissions {mode:04o}",
                 )
             )
     except OSError as exc:
@@ -651,23 +651,23 @@ def _check_ssh(root: str) -> list[CheckResult]:
             _result(
                 "SSH-CONFIG-PERMS",
                 "ssh",
-                "SSH 配置文件权限检查",
+                "SSH configuration file permission check",
                 ERROR,
-                detail=f"无法读取 /etc/ssh/sshd_config 属性: {exc}",
+                detail=f"cannot read /etc/ssh/sshd_config attributes: {exc}",
             )
         )
     return results
 
 
 _DANGEROUS_PORTS: dict[int, tuple[str, str | None, str]] = {
-    21: ("FTP", "medium", "明文文件传输服务"),
-    23: ("Telnet", "high", "明文远程登录服务"),
-    69: ("TFTP", "high", "无认证文件传输服务"),
-    111: ("rpcbind", "low", "RPC 端口映射服务"),
-    512: ("rexec", "high", "传统明文远程执行服务"),
-    513: ("rlogin", "high", "传统明文远程登录服务"),
-    514: ("rsh", "high", "传统明文远程 shell 服务"),
-    2375: ("Docker API", "critical", "未加密且通常无认证的容器运行时 API"),
+    21: ("FTP", "medium", "plaintext file transfer service"),
+    23: ("Telnet", "high", "plaintext remote login service"),
+    69: ("TFTP", "high", "unauthenticated file transfer service"),
+    111: ("rpcbind", "low", "RPC port mapping service"),
+    512: ("rexec", "high", "legacy plaintext remote execution service"),
+    513: ("rlogin", "high", "legacy plaintext remote login service"),
+    514: ("rsh", "high", "legacy plaintext remote shell service"),
+    2375: ("Docker API", "critical", "unencrypted and typically unauthenticated container runtime API"),
 }
 
 
@@ -688,10 +688,10 @@ def _check_ports(root: str) -> list[CheckResult]:
             _result(
                 "PORT-DANGEROUS",
                 "ports",
-                "危险监听端口检查",
+                "Dangerous listening port check",
                 ERROR,
-                detail="无法读取 /proc/net/tcp 与 /proc/net/tcp6，未评估监听端口"
-                + (f"（{'; '.join(errors)}）" if errors else ""),
+                detail="cannot read /proc/net/tcp and /proc/net/tcp6; listening ports were not evaluated"
+                + (f" ({'; '.join(errors)})" if errors else ""),
             )
         ]
     findings: list[CheckResult] = []
@@ -718,16 +718,16 @@ def _check_ports(root: str) -> list[CheckResult]:
         if key in seen:
             continue
         seen.add(key)
-        bind = "所有接口" if kind == "wildcard" else ("回环地址" if kind == "loopback" else "外部接口")
+        bind = "all interfaces" if kind == "wildcard" else ("the loopback address" if kind == "loopback" else "an external interface")
         findings.append(
             _result(
                 "PORT-DANGEROUS",
                 "ports",
-                f"发现危险监听端口: {service}",
+                f"Dangerous listening port found: {service}",
                 FINDING,
                 severity=severity,
-                detail=f"{service} 正在{bind}监听 TCP {port}（{note}）",
-                remediation=f"确认业务是否需要 {service}；不需要时停止服务或限制为回环/防火墙白名单。",
+                detail=f"{service} is listening on TCP {port} on {bind} ({note})",
+                remediation=f"Confirm whether the business needs {service}; if not, stop the service or restrict it to the loopback address or a firewall allowlist.",
                 target={"type": "port", "name": str(port)},
                 evidence={"port": port, "service": service, "bind": kind},
                 dedup_hint=f"port:{port}:{kind}",
@@ -739,20 +739,20 @@ def _check_ports(root: str) -> list[CheckResult]:
         _result(
             "PORT-DANGEROUS",
             "ports",
-            "危险监听端口检查",
+            "Dangerous listening port check",
             PASS,
-            detail=f"已检查 {len(known_ports)} 个监听端口，未发现非预期的传统明文/无认证管理服务",
+            detail=f"checked {len(known_ports)} listening ports; no unexpected legacy plaintext/unauthenticated management services found",
         )
     ]
 
 
 _LEGACY_UNITS: dict[str, tuple[str, str, str]] = {
-    "telnet.socket": ("Telnet", "high", "明文远程登录服务"),
-    "rsh.socket": ("rsh", "high", "传统明文远程 shell 服务"),
-    "rlogin.socket": ("rlogin", "high", "传统明文远程登录服务"),
-    "rexec.socket": ("rexec", "high", "传统明文远程执行服务"),
-    "tftp.socket": ("TFTP", "high", "无认证文件传输服务"),
-    "vsftpd.service": ("vsftpd", "medium", "FTP 服务；如非必要应停用"),
+    "telnet.socket": ("Telnet", "high", "plaintext remote login service"),
+    "rsh.socket": ("rsh", "high", "legacy plaintext remote shell service"),
+    "rlogin.socket": ("rlogin", "high", "legacy plaintext remote login service"),
+    "rexec.socket": ("rexec", "high", "legacy plaintext remote execution service"),
+    "tftp.socket": ("TFTP", "high", "unauthenticated file transfer service"),
+    "vsftpd.service": ("vsftpd", "medium", "FTP service; disable it if not required"),
 }
 
 
@@ -762,9 +762,9 @@ def _check_services(root: str) -> list[CheckResult]:
             _result(
                 "SVC-LEGACY",
                 "services",
-                "传统危险服务检查",
+                "Legacy dangerous service check",
                 SKIPPED,
-                detail="未检测到 systemd（容器内通常不可用），未评估服务启用状态",
+                detail="systemd was not detected (usually unavailable inside containers); service enablement was not evaluated",
             )
         ]
     binary = which("systemctl")
@@ -773,9 +773,9 @@ def _check_services(root: str) -> list[CheckResult]:
             _result(
                 "SVC-LEGACY",
                 "services",
-                "传统危险服务检查",
+                "Legacy dangerous service check",
                 SKIPPED,
-                detail="systemd 正在运行但找不到 systemctl，未评估服务启用状态",
+                detail="systemd is running but systemctl was not found; service enablement was not evaluated",
             )
         ]
     findings: list[CheckResult] = []
@@ -785,17 +785,17 @@ def _check_services(root: str) -> list[CheckResult]:
         output = (result.stdout or "").strip().splitlines()
         state = output[0].strip().lower() if output else ""
         if result.timed_out:
-            errors.append(f"{unit}: 查询超时")
+            errors.append(f"{unit}: query timed out")
         elif state == "enabled":
             findings.append(
                 _result(
                     "SVC-LEGACY",
                     "services",
-                    f"发现已启用的传统危险服务: {name}",
+                    f"Enabled legacy dangerous service found: {name}",
                     FINDING,
                     severity=severity,
-                    detail=f"{unit} 已启用（{note}）",
-                    remediation=f"确认 {name} 是否必需；不需要时 systemctl disable --now {unit}。",
+                    detail=f"{unit} is enabled ({note})",
+                    remediation=f"Confirm whether {name} is required; if not, run systemctl disable --now {unit}.",
                     target={"type": "service", "name": unit},
                     evidence={"unit": unit, "state": state},
                     dedup_hint=f"service:{unit}",
@@ -810,18 +810,18 @@ def _check_services(root: str) -> list[CheckResult]:
             _result(
                 "SVC-LEGACY",
                 "services",
-                "传统危险服务检查",
+                "Legacy dangerous service check",
                 ERROR,
-                detail="；".join(errors),
+                detail="; ".join(errors),
             )
         ]
     return [
         _result(
             "SVC-LEGACY",
             "services",
-            "传统危险服务检查",
+            "Legacy dangerous service check",
             PASS,
-            detail="未发现已启用的 Telnet/rsh/rlogin/rexec/TFTP/vsftpd 服务",
+            detail="no enabled Telnet/rsh/rlogin/rexec/TFTP/vsftpd services found",
         )
     ]
 
@@ -833,9 +833,9 @@ def _check_aslr(root: str) -> list[CheckResult]:
             _result(
                 "SYS-ASLR",
                 "kernel",
-                "地址空间随机化检查",
+                "Address space randomization check",
                 ERROR,
-                detail=f"无法读取 ASLR 设置: {error}",
+                detail=f"cannot read the ASLR setting: {error}",
             )
         ]
     value = text.strip()
@@ -844,9 +844,9 @@ def _check_aslr(root: str) -> list[CheckResult]:
             _result(
                 "SYS-ASLR",
                 "kernel",
-                "地址空间随机化检查",
+                "Address space randomization check",
                 PASS,
-                detail="randomize_va_space=2（完全随机化）",
+                detail="randomize_va_space=2 (full randomization)",
             )
         ]
     severity = "medium" if value == "0" else "low"
@@ -854,11 +854,11 @@ def _check_aslr(root: str) -> list[CheckResult]:
         _result(
             "SYS-ASLR",
             "kernel",
-            "地址空间随机化不足",
+            "Insufficient address space randomization",
             FINDING,
             severity=severity,
-            detail=f"randomize_va_space={value}；建议保持为 2",
-            remediation="评估兼容性后设置 kernel.randomize_va_space=2（通过 sysctl）；本程序不会自动修改。",
+            detail=f"randomize_va_space={value}; keep it at 2",
+            remediation="After evaluating compatibility, set kernel.randomize_va_space=2 (via sysctl); this program will not change it automatically.",
             target={"type": "sysctl", "name": "kernel.randomize_va_space"},
             evidence={"value": value},
             dedup_hint="sysctl:randomize_va_space",
@@ -879,18 +879,18 @@ def _check_mac(root: str) -> list[CheckResult]:
             _result(
                 "SYS-MAC",
                 "kernel",
-                "强制访问控制检查",
+                "Mandatory access control check",
                 PASS,
-                detail=f"检测到 {' / '.join(frameworks)} 安全框架接口",
+                detail=f"detected {' / '.join(frameworks)} security framework interfaces",
             )
         ]
     return [
         _result(
             "SYS-MAC",
             "kernel",
-            "强制访问控制检查",
+            "Mandatory access control check",
             SKIPPED,
-            detail="未检测到 AppArmor/SELinux 接口（容器可能隐藏宿主机的安全文件系统），不下结论",
+            detail="no AppArmor/SELinux interfaces detected (the container may hide the host security filesystems); no conclusion is drawn",
         )
     ]
 
@@ -918,9 +918,9 @@ def run_builtin_checks(root: str = "/") -> list[CheckResult]:
                 _result(
                     check.__name__.upper(),
                     "system",
-                    "检查执行失败",
+                    "Check execution failed",
                     ERROR,
-                    detail=f"内部检查异常: {exc}",
+                    detail=f"internal check error: {exc}",
                 )
             )
     return results

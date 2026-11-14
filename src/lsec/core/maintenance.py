@@ -53,10 +53,10 @@ class MaintenanceService:
             removed_files = self.evidence.prune()
             if any((removed_sessions, removed_events, removed_files)):
                 log.info(
-                    "维护完成 sessions=%s events=%s evidence=%s",
+                    "maintenance complete sessions=%s events=%s evidence=%s",
                     removed_sessions,
                     removed_events,
                     removed_files,
                 )
         except Exception:
-            log.exception("定期维护失败")
+            log.exception("periodic maintenance failed")

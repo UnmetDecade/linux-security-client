@@ -98,7 +98,7 @@ def _compact(value: Any, limit_bytes: int = MAX_DETAILS_BYTES) -> Any:
     try:
         encoded = json.dumps(value, ensure_ascii=False, default=str)
     except (TypeError, ValueError):
-        return {"error": "证据无法序列化"}
+        return {"error": "evidence could not be serialized"}
     if len(encoded.encode("utf-8")) <= limit_bytes:
         return value
     return {"truncated": True, "preview": encoded[: limit_bytes // 2]}
@@ -134,10 +134,10 @@ class EventService:
             "source": "clamav",
             "category": "malware",
             "severity": severity,
-            "title": f"检测到恶意文件: {name}",
+            "title": f"Malicious file detected: {name}",
             "description": (
-                f"ClamAV 在扫描任务 {task_id}（{task_type}）中发现恶意文件。"
-                "该文件尚未被自动处置，请核实后决定是否隔离。"
+                f"ClamAV found a malicious file during scan task {task_id} ({task_type}). "
+                "The file has not been handled automatically; verify it before deciding whether to quarantine it."
             )[:4000],
             "host": _compact(self.host_provider()),
             "target": {
@@ -163,9 +163,9 @@ class EventService:
             ),
             "status": "new",
             "recommended_actions": [
-                "核实文件来源与用途",
-                "确认后隔离文件并重新扫描",
-                "如无法确认，保留证据并升级处理",
+                "Verify the file's origin and purpose",
+                "Quarantine the file and rescan after confirmation",
+                "If it cannot be confirmed, preserve the evidence and escalate",
             ],
             "dedup_key": _dedup_key("clamav", "malware", path, name),
             "source_ref": {"source": "clamav", "task_id": task_id, "detection_name": name},
@@ -188,7 +188,7 @@ class EventService:
         severity = str(details.get("severity") or "")
         if severity not in event_store.SEVERITIES:
             severity = severity_for_detection(rule)
-        title = f"YARA 规则命中: {rule}"[:300]
+        title = f"YARA rule match: {rule}"[:300]
         event = {
             "schema_version": 1,
             "timestamp": now_iso(),
@@ -197,10 +197,10 @@ class EventService:
             "severity": severity,
             "title": title,
             "description": (
-                f"YARA 规则包 {pack_id or '未知'}（{pack_version or '未知版本'}）"
-                f"在扫描任务 {task_id}（{task_type}）中命中文件。"
-                "规则命中表示内容模式匹配，不等同于已确认恶意软件；"
-                "文件未被自动隔离或删除，请核实规则、文件来源与用途。"
+                f"YARA rule pack {pack_id or 'unknown'} ({pack_version or 'unknown version'}) "
+                f"matched a file during scan task {task_id} ({task_type}). "
+                "A rule match means the content pattern matched and is not equivalent to confirmed malware; "
+                "the file has not been quarantined or deleted automatically. Verify the rule, the file's origin and purpose."
             )[:4000],
             "host": _compact(self.host_provider()),
             "target": {
@@ -229,9 +229,9 @@ class EventService:
             ),
             "status": "new",
             "recommended_actions": [
-                "核对规则内容、标签与文件来源，判断是否为真实威胁或误报",
-                "确认后可通过隔离区受控隔离文件，并记录处置理由",
-                "不要仅凭规则命中删除系统文件或停止生产服务",
+                "Review the rule content, tags and file origin to determine whether this is a real threat or a false positive",
+                "If confirmed, quarantine the file through the quarantine store and record the reason",
+                "Do not delete system files or stop production services solely because of a rule match",
             ],
             "dedup_key": _dedup_key(
                 "yara", "malware", pack_id, pack_version, rule, path
@@ -258,14 +258,14 @@ class EventService:
         never contacts a Wazuh Manager and never claims manager capability.
         """
         if not isinstance(alert, dict):
-            raise invalid("Wazuh 告警必须是 JSON 对象")
+            raise invalid("Wazuh alerts must be JSON objects")
         try:
             encoded = json.dumps(alert, ensure_ascii=False, default=str).encode("utf-8")
         except (TypeError, ValueError) as exc:
-            raise invalid(f"Wazuh 告警无法序列化: {exc}") from exc
+            raise invalid(f"Wazuh alert could not be serialized: {exc}") from exc
         if len(encoded) > max_event_bytes:
             raise invalid(
-                "Wazuh 告警超过大小限制",
+                "Wazuh alert exceeds the size limit",
                 {"bytes": len(encoded), "max_event_bytes": max_event_bytes},
             )
 
@@ -279,7 +279,7 @@ class EventService:
         level = _wazuh_level(rule.get("level"))
         severity = wazuh_severity(level)
         category = wazuh_category(rule)
-        description = str(rule.get("description") or "未命名 Wazuh 告警")[:500]
+        description = str(rule.get("description") or "unnamed Wazuh alert")[:500]
         rule_id = str(rule.get("id") or "")[:80]
         groups = _wazuh_groups(rule.get("groups"))
         agent_id = str(agent.get("id") or "")[:80]
@@ -313,19 +313,19 @@ class EventService:
                 "name": agent_name or agent_id or None,
             }
 
-        subject = path or srcip or agent_name or "本机"
+        subject = path or srcip or agent_name or "this host"
         event = {
             "schema_version": 1,
             "timestamp": now_iso(),
             "source": "wazuh",
             "category": category,
             "severity": severity,
-            "title": f"Wazuh 告警: {description}"[:300],
+            "title": f"Wazuh alert: {description}"[:300],
             "description": (
-                f"本地 Wazuh Agent {agent_name or agent_id or '未知'} 产生级别 "
-                f"{level} 告警（规则 {rule_id or '未知'}）。"
-                "事件来自本地 alerts.json，仅代表 Agent 已接收/生成的告警；"
-                "lsec 不是 Wazuh Manager，不验证 Manager 全量能力，也不会自动隔离或删除文件。"
+                f"Local Wazuh Agent {agent_name or agent_id or 'unknown'} produced a level-"
+                f"{level} alert (rule {rule_id or 'unknown'}). "
+                "The event comes from the local alerts.json and only represents alerts received/generated by the Agent; "
+                "lsec is not a Wazuh Manager, does not verify full Manager capability, and never quarantines or deletes files automatically."
             )[:4000],
             "host": _compact(self.host_provider()),
             "target": target,
@@ -355,9 +355,9 @@ class EventService:
             ),
             "status": "new",
             "recommended_actions": [
-                "核对 Wazuh 规则、Agent 与告警上下文，判断是否为真实威胁",
-                "在 Wazuh Manager 侧确认关联规则与完整调查信息（本客户端不提供 Manager API）",
-                "如需处置，使用隔离区并记录理由；不会自动删除或更改系统配置",
+                "Review the Wazuh rule, Agent and alert context to determine whether this is a real threat",
+                "Confirm the related rules and full investigation details on the Wazuh Manager side (this client does not provide a Manager API)",
+                "If action is needed, use the quarantine store and record the reason; files are never deleted and system configuration is never changed automatically",
             ],
             "dedup_key": _dedup_key(
                 "wazuh", "alert", agent_id, rule_id, description, subject
@@ -394,12 +394,12 @@ class EventService:
     ) -> dict[str, Any] | tuple[dict[str, Any], bool]:
         """Normalize a host-audit or Lynis finding into the event model."""
         if source not in VALID_SOURCES:
-            raise invalid("无效的事件来源")
+            raise invalid("invalid event source")
         if category not in VALID_CATEGORIES:
-            raise invalid("无效的事件类别")
+            raise invalid("invalid event category")
         if severity not in event_store.SEVERITIES:
-            raise invalid("无效的事件严重程度")
-        title = (title or "安全基线发现")[:300]
+            raise invalid("invalid event severity")
+        title = (title or "security baseline finding")[:300]
         target = target or {"type": "host"}
         body = {
             "schema_version": 1,
@@ -490,8 +490,8 @@ class EventService:
 
 def validate_event(event: dict[str, Any]) -> None:
     if event.get("source") not in VALID_SOURCES:
-        raise invalid("无效的事件来源")
+        raise invalid("invalid event source")
     if event.get("category") not in VALID_CATEGORIES:
-        raise invalid("无效的事件类别")
+        raise invalid("invalid event category")
     if event.get("severity") not in event_store.SEVERITIES:
-        raise invalid("无效的事件严重程度")
+        raise invalid("invalid event severity")

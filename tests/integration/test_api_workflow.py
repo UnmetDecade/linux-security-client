@@ -343,7 +343,7 @@ class ApiWorkflowTests(unittest.TestCase):
         self.assertEqual(protection["virus_database"]["state"], "current")
         # Real-time protection is unsupported, so the aggregate must not be "healthy".
         self.assertNotEqual(payload["status"]["overall"], "healthy")
-        self.assertIn("实时防护", " ".join(payload["status"]["reasons"]))
+        self.assertIn("real-time protection", " ".join(payload["status"]["reasons"]))
 
         status, payload, _ = self.admin.json("GET", "/api/v1/capabilities")
         self.assertEqual(payload["capabilities"]["malware_scan"]["state"], "available")

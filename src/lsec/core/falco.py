@@ -66,19 +66,19 @@ def normalize_falco_event(
     max_event_bytes: int = 32768,
 ) -> dict[str, Any]:
     if not isinstance(payload, dict):
-        raise invalid("Falco 事件必须是 JSON 对象")
+        raise invalid("Falco events must be JSON objects")
     try:
         encoded = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
     except (TypeError, ValueError):
-        raise invalid("Falco 事件无法序列化") from None
+        raise invalid("Falco event could not be serialized") from None
     if len(encoded) > max_event_bytes:
-        raise invalid("Falco 事件超过大小上限")
+        raise invalid("Falco event exceeds the size limit")
 
     rule = _text(payload.get("rule"), 200)
     output = _text(payload.get("output"), 2000)
     priority_raw = _text(payload.get("priority"), 40)
     if not rule and not output:
-        raise invalid("Falco 事件缺少 rule 和 output")
+        raise invalid("Falco event is missing rule and output")
     priority = priority_raw.lower()
     severity = PRIORITY_MAP.get(priority, "medium")
 
@@ -86,7 +86,7 @@ def normalize_falco_event(
     if raw_fields is None:
         raw_fields = {}
     if not isinstance(raw_fields, dict):
-        raise invalid("Falco output_fields 必须是对象")
+        raise invalid("Falco output_fields must be an object")
     fields: dict[str, Any] = {}
     for key in _FIELD_KEYS:
         if key not in raw_fields:
@@ -114,7 +114,7 @@ def normalize_falco_event(
     except (TypeError, ValueError):
         pid = None
 
-    title = f"Falco 告警: {rule}" if rule else "Falco 运行时告警"
+    title = f"Falco alert: {rule}" if rule else "Falco runtime alert"
     source_ref = {
         "source": "falco",
         "rule": rule[:200],
@@ -155,9 +155,9 @@ def normalize_falco_event(
         ),
         "status": "new",
         "recommended_actions": [
-            "核实容器与进程行为，结合 Falco 原始输出判断是否误报",
-            "保留容器 ID、镜像和进程信息作为调查证据",
-            "在确认影响前不要停止生产容器或结束未知进程",
+            "Verify the container and process behavior against the raw Falco output to determine whether this is a false positive",
+            "Keep the container ID, image and process information as investigation evidence",
+            "Do not stop production containers or kill unknown processes before the impact is confirmed",
         ],
         "dedup_key": _dedup_key(
             "falco",

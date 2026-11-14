@@ -55,7 +55,7 @@ class ScanManager:
     def start(self) -> None:
         recovered = scan_store.recover_interrupted(self.db)
         if recovered:
-            log.warning("发现 %s 个中断任务，已标记为失败", recovered)
+            log.warning("found %s interrupted tasks; marked as failed", recovered)
         for index in range(self.config.scan.max_parallel_tasks):
             worker = threading.Thread(
                 target=self._worker_loop, name=f"scan-worker-{index}", daemon=True
@@ -90,25 +90,25 @@ class ScanManager:
     ) -> dict[str, Any]:
         if task_type not in scan_store.SUPPORTED_TASK_TYPES:
             raise invalid(
-                f"任务类型 {task_type} 尚未实现",
+                f"task type {task_type} is not implemented at this stage",
                 {"supported": list(scan_store.SUPPORTED_TASK_TYPES)},
             )
         default_engine = "yara" if task_type == "yara" else "clamav"
         selected = engines or [default_engine]
         if not isinstance(selected, list) or not selected:
-            raise invalid("必须选择一个扫描引擎")
+            raise invalid("a scan engine must be selected")
         if not all(isinstance(engine, str) for engine in selected):
-            raise invalid("引擎名称必须是字符串")
+            raise invalid("engine names must be strings")
         # Deduplicate while preserving the caller's order.
         selected = list(dict.fromkeys(selected))
         unknown = [engine for engine in selected if engine not in SUPPORTED_ENGINES]
         if unknown:
             raise invalid(
-                "所选引擎当前不可用",
+                "the selected engine is currently unavailable",
                 {"unknown": unknown, "supported": list(SUPPORTED_ENGINES)},
             )
         if task_type == "yara" and selected != ["yara"]:
-            raise invalid("YARA 规则扫描任务只能选择 YARA 引擎")
+            raise invalid("YARA rule scan tasks can only select the YARA engine")
         resolved = self._resolve_targets(task_type, targets or [])
         for engine in selected:
             self._require_engine_ready(engine)
@@ -116,7 +116,7 @@ class ScanManager:
             "SELECT COUNT(*) AS n FROM scan_tasks WHERE status = 'queued'"
         )
         if int(queued_row["n"] if queued_row else 0) >= MAX_QUEUED_TASKS:
-            raise conflict("扫描队列已满，请稍后再试")
+            raise conflict("scan queue is full; try again later")
         task = scan_store.create_task(
             self.db,
             task_type=task_type,
@@ -133,13 +133,13 @@ class ScanManager:
             if not probe.get("installed"):
                 raise LsecError(
                     ErrorCode.COMPONENT_UNAVAILABLE,
-                    "ClamAV 未安装，无法创建扫描任务",
+                    "ClamAV is not installed; cannot create a scan task",
                     {"component": "clamav"},
                 )
             if probe.get("service_status") != "running":
                 raise LsecError(
                     ErrorCode.COMPONENT_UNAVAILABLE,
-                    "ClamAV 服务未运行，无法创建扫描任务",
+                    "the ClamAV service is not running; cannot create a scan task",
                     {"component": "clamav", "health": probe.get("health_status")},
                 )
             return
@@ -147,14 +147,14 @@ class ScanManager:
             if not probe.get("installed"):
                 raise LsecError(
                     ErrorCode.COMPONENT_UNAVAILABLE,
-                    "YARA 未安装，无法创建规则扫描任务",
+                    "YARA is not installed; cannot create a rule scan task",
                     {"component": "yara"},
                 )
             if probe.get("error_code") or probe.get("health_status") == "unavailable":
                 raise LsecError(
                     ErrorCode.COMPONENT_UNAVAILABLE,
                     probe.get("error_message")
-                    or "YARA 规则包不可用，无法创建扫描任务",
+                    or "YARA rule packs are unavailable; cannot create a scan task",
                     {
                         "component": "yara",
                         "error_code": probe.get("error_code"),
@@ -162,7 +162,7 @@ class ScanManager:
                     },
                 )
             return
-        raise invalid(f"未知扫描引擎: {engine}")
+        raise invalid(f"unknown scan engine: {engine}")
 
     def _resolve_targets(self, task_type: str, requested: list[str]) -> list[str]:
         if task_type == "quick":
@@ -170,25 +170,25 @@ class ScanManager:
                 path for path in self.config.scan.quick_scan_paths if os.path.exists(path)
             ]
             if not targets:
-                raise invalid("快速扫描目标均不存在，请检查配置 scan.quick_scan_paths")
+                raise invalid("all quick scan targets are missing; check scan.quick_scan_paths")
             return targets
         if task_type == "full":
             return ["/"]
         if task_type in {"custom", "yara"}:
             if not requested:
-                label = "YARA 规则扫描" if task_type == "yara" else "自定义扫描"
-                raise invalid(f"{label}必须提供至少一个目标路径")
+                label = "YARA rule scan" if task_type == "yara" else "custom scan"
+                raise invalid(f"{label} requires at least one target path")
             cleaned: list[str] = []
             for path in requested:
-                validate_path_text(path, field="扫描路径")
+                validate_path_text(path, field="scan path")
                 if not os.path.exists(path):
-                    raise invalid(f"扫描目标不存在: {path}")
+                    raise invalid(f"scan target does not exist: {path}")
                 ensure_within_roots(
-                    path, self.config.scan.allowed_roots, field="扫描路径"
+                    path, self.config.scan.allowed_roots, field="scan path"
                 )
                 cleaned.append(path)
             return cleaned
-        raise invalid("不支持的任务类型")
+        raise invalid("unsupported task type")
 
     def cancel(self, task_id: str) -> dict[str, Any]:
         task = scan_store.request_cancel(self.db, task_id)
@@ -271,7 +271,7 @@ class ScanManager:
                     )
                 except Exception:  # progress must never abort a scan
                     log.exception(
-                        "更新任务进度失败 task=%s engine=%s", task_id, engine_name
+                        "failed to update task progress task=%s engine=%s", task_id, engine_name
                     )
 
             def on_detection(
@@ -329,21 +329,21 @@ class ScanManager:
                     }
                 )
                 log.warning(
-                    "扫描引擎失败 task=%s engine=%s: %s", task_id, engine, exc.message
+                    "scan engine failed task=%s engine=%s: %s", task_id, engine, exc.message
                 )
                 continue
             except Exception as exc:  # pragma: no cover - defensive
-                log.exception("扫描引擎异常 task=%s engine=%s", task_id, engine)
-                failures.append({"engine": engine, "error": f"内部错误: {exc}"})
+                log.exception("scan engine error task=%s engine=%s", task_id, engine)
+                failures.append({"engine": engine, "error": f"internal error: {exc}"})
                 all_error_details.append(
-                    {"engine": engine, "error": f"内部错误: {exc}"}
+                    {"engine": engine, "error": f"internal error: {exc}"}
                 )
                 total_errors += 1
                 engine_summaries.append(
                     {
                         "engine": engine,
                         "status": "failed",
-                        "error": f"内部错误: {exc}",
+                        "error": f"internal error: {exc}",
                         "duration_seconds": round(
                             time.monotonic() - engine_started, 1
                         ),
@@ -384,7 +384,7 @@ class ScanManager:
                 error_count=max(1, total_errors),
                 progress=task.get("progress"),
             )
-            log.warning("扫描任务失败 task=%s: %s", task_id, failures[0]["error"])
+            log.warning("scan task failed task=%s: %s", task_id, failures[0]["error"])
             return
 
         if cancelled:
@@ -430,7 +430,7 @@ class ScanManager:
             if report_path:
                 summary["evidence_path"] = report_path
         except OSError as exc:
-            log.warning("写入扫描证据失败 task=%s: %s", task_id, exc)
+            log.warning("failed to write scan evidence task=%s: %s", task_id, exc)
 
         scan_store.finish(
             self.db,
@@ -444,7 +444,7 @@ class ScanManager:
             progress=None if cancelled else (100.0 if max_total else None),
         )
         log.info(
-            "扫描任务结束 task=%s status=%s engines=%s files=%s detections=%s errors=%s",
+            "scan task finished task=%s status=%s engines=%s files=%s detections=%s errors=%s",
             task_id,
             status,
             ",".join(engines),
@@ -459,7 +459,7 @@ class ScanManager:
             try:
                 self._maybe_schedule()
             except Exception:
-                log.exception("定时扫描调度失败")
+                log.exception("scheduled scan scheduling failed")
 
     def _maybe_schedule(self) -> None:
         schedule = settings_store.get(self.db, "scheduled_scan", {}) or {}
@@ -485,9 +485,9 @@ class ScanManager:
                 task_type=scan_type, targets=None, engines=["clamav"], actor="scheduler"
             )
         except LsecError as exc:
-            log.warning("定时扫描创建失败: %s", exc.message)
+            log.warning("failed to create scheduled scan: %s", exc.message)
             return
         schedule = dict(schedule)
         schedule["last_run_at"] = now_iso()
         settings_store.set_value(self.db, "scheduled_scan", schedule)
-        log.info("已创建定时扫描任务 task=%s", task["task_id"])
+        log.info("scheduled scan task created task=%s", task["task_id"])

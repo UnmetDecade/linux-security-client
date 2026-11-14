@@ -114,7 +114,7 @@ class HostCheckTests(unittest.TestCase):
             ]
         )
         self.assertEqual(ssh[0]["permitrootlogin"], "yes")
-        self.assertIn("Match 条件块未纳入全局结论", ssh[1])
+        self.assertIn("Match blocks were not included in the global conclusion", ssh[1])
 
     def test_hashes_are_never_retained(self) -> None:
         self._populate()

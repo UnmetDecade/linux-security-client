@@ -113,5 +113,5 @@ def _decode(data: bytes | None, max_output: int) -> str:
         truncated = True
     text = data.decode("utf-8", errors="replace")
     if truncated:
-        text += "\n...[输出已截断]"
+        text += "\n...[output truncated]"
     return text

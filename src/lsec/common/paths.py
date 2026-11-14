@@ -19,13 +19,13 @@ MAX_PATH_LENGTH = 4096
 
 def validate_path_text(path: object, *, field: str = "path") -> str:
     if not isinstance(path, str) or not path:
-        raise invalid(f"{field} 必须是非空字符串")
+        raise invalid(f"{field} must be a non-empty string")
     if len(path) > MAX_PATH_LENGTH:
-        raise invalid(f"{field} 超过最大长度 {MAX_PATH_LENGTH}")
+        raise invalid(f"{field} exceeds the maximum length {MAX_PATH_LENGTH}")
     if "\x00" in path or "\n" in path or "\r" in path:
-        raise invalid(f"{field} 包含非法字符")
+        raise invalid(f"{field} contains illegal characters")
     if not os.path.isabs(path):
-        raise invalid(f"{field} 必须是绝对路径: {path}")
+        raise invalid(f"{field} must be an absolute path: {path}")
     return path
 
 
@@ -34,7 +34,7 @@ def canonical(path: str, *, must_exist: bool = True) -> str:
     validate_path_text(path)
     real = os.path.realpath(path)
     if must_exist and not os.path.exists(real):
-        raise invalid(f"路径不存在: {path}")
+        raise invalid(f"path does not exist: {path}")
     return real
 
 
@@ -56,7 +56,7 @@ def ensure_within_roots(path: str, roots: tuple[str, ...] | list[str], *, field:
     validate_path_text(path, field=field)
     if not any(is_within(path, root) for root in roots):
         raise invalid(
-            f"{field} 不在允许的目录范围内",
+            f"{field} is outside the allowed roots",
             {"path": path, "allowed_roots": list(roots)},
         )
     return path
@@ -68,11 +68,11 @@ def require_regular_file(path: str, *, field: str = "path") -> os.stat_result:
     try:
         st = os.lstat(path)
     except OSError as exc:
-        raise invalid(f"无法访问{field}: {exc.strerror}") from exc
+        raise invalid(f"cannot access {field}: {exc.strerror}") from exc
     if stat.S_ISLNK(st.st_mode):
-        raise invalid(f"{field} 是符号链接，拒绝操作: {path}")
+        raise invalid(f"{field} is a symlink; refusing operation: {path}")
     if not stat.S_ISREG(st.st_mode):
-        raise invalid(f"{field} 不是普通文件: {path}")
+        raise invalid(f"{field} is not a regular file: {path}")
     return st
 
 
@@ -81,9 +81,9 @@ def require_directory(path: str, *, field: str = "path") -> None:
     try:
         st = os.lstat(path)
     except OSError as exc:
-        raise invalid(f"无法访问{field}: {exc.strerror}") from exc
+        raise invalid(f"cannot access {field}: {exc.strerror}") from exc
     if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
-        raise invalid(f"{field} 不是普通目录: {path}")
+        raise invalid(f"{field} is not a regular directory: {path}")
 
 
 def ensure_dir(path: Path, mode: int = 0o750) -> None:

@@ -69,7 +69,7 @@ def ensure_tokens(secrets_dir: Path) -> dict[str, str]:
         env_value = os.environ.get(env_name)
         if env_value:
             if len(env_value) < 16:
-                raise ValueError(f"{env_name} 长度必须至少 16 个字符")
+                raise ValueError(f"{env_name} must be at least 16 characters long")
             value = env_value
             # Keep the on-disk token in sync so the CLI can find the same
             # credential the daemon is using. Never log either value.
@@ -89,7 +89,7 @@ def ensure_tokens(secrets_dir: Path) -> dict[str, str]:
             value = secrets.token_urlsafe(32)
             _write_secret(path, value)
         if not value:
-            raise ValueError(f"空令牌文件: {path}")
+            raise ValueError(f"empty token file: {path}")
         tokens[role] = value
     return tokens
 
@@ -112,7 +112,7 @@ def ensure_falco_token(secrets_dir: Path, enabled: bool) -> str | None:
     env_value = os.environ.get("LSEC_FALCO_TOKEN")
     if env_value:
         if len(env_value) < 16:
-            raise ValueError("LSEC_FALCO_TOKEN 长度必须至少 16 个字符")
+            raise ValueError("LSEC_FALCO_TOKEN must be at least 16 characters long")
         value = env_value
         try:
             existing = path.read_text(encoding="utf-8").strip()
@@ -130,7 +130,7 @@ def ensure_falco_token(secrets_dir: Path, enabled: bool) -> str | None:
         value = secrets.token_urlsafe(32)
         _write_secret(path, value)
     if not value:
-        raise ValueError(f"空令牌文件: {path}")
+        raise ValueError(f"empty token file: {path}")
     return value
 
 
@@ -191,7 +191,7 @@ class AuthService:
         if not self.rate_limiter.check(remote_addr):
             raise LsecError(
                 ErrorCode.RATE_LIMITED,
-                "登录尝试过于频繁，请稍后再试",
+                "too many login attempts; try again later",
                 http_status=429,
             )
         role = self.token_role(token)
@@ -216,7 +216,7 @@ class AuthService:
 
 def require_admin(role: str) -> None:
     if role != ROLE_ADMIN:
-        raise forbidden("该操作需要管理员权限")
+        raise forbidden("this operation requires administrator privileges")
 
 
 def csrf_valid(session: dict[str, Any], supplied: str | None) -> bool:

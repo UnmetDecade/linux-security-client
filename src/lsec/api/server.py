@@ -94,20 +94,20 @@ class RequestContext:
         try:
             value = int(raw)
         except (TypeError, ValueError):
-            raise invalid(f"查询参数 {name} 必须是整数") from None
+            raise invalid(f"query parameter {name} must be an integer") from None
         if not minimum <= value <= maximum:
-            raise invalid(f"查询参数 {name} 超出范围")
+            raise invalid(f"query parameter {name} is out of range")
         return value
 
     def q_enum(self, name: str, allowed: tuple[str, ...]) -> str | None:
         raw = self.q(name)
         if raw is not None and raw not in allowed:
-            raise invalid(f"查询参数 {name} 取值无效", {"allowed": list(allowed)})
+            raise invalid(f"invalid value for query parameter {name}", {"allowed": list(allowed)})
         return raw
 
     def require_json_object(self) -> dict[str, Any]:
         if self.body is None:
-            raise invalid("请求体必须是 JSON 对象")
+            raise invalid("request body must be a JSON object")
         return self.body
 
 
@@ -165,7 +165,7 @@ class Application:
             if self.containers
             else {
                 "state": "disabled",
-                "note": "容器监控未启用",
+                "note": "container monitoring is disabled",
                 "summary": {},
                 "engine": None,
             }
@@ -199,16 +199,16 @@ class Application:
         )
         reason = None
         if not scan_ready:
-            reason = clamav.get("error_message") or "ClamAV 未就绪"
+            reason = clamav.get("error_message") or "ClamAV is not ready"
         if lynis.get("installed"):
             audit_reason = (
-                f"内置只读基线检查与 Lynis {lynis.get('version') or ''} 可用；"
-                "审计范围为容器可见环境"
+                f"Built-in read-only baseline checks and Lynis {lynis.get('version') or ''} are available; "
+                "the audit scope is the environment visible to the container"
             ).strip()
         else:
             audit_reason = (
-                "内置只读基线检查可用；Lynis 未安装时不会生成 Lynis 结果，"
-                "审计范围为容器可见环境"
+                "Built-in read-only baseline checks are available; without Lynis installed, no Lynis results are produced, "
+                "and the audit scope is the environment visible to the container"
             )
         return {
             "malware_scan": {
@@ -223,16 +223,16 @@ class Application:
                         "state": self._yara_state(yara_component),
                         "reason": yara_component.get("error_message")
                         or (
-                            "YARA 规则扫描可用"
+                            "YARA rule scanning is available"
                             if yara_component.get("health_status") == "ok"
-                            else "YARA 状态未知"
+                            else "YARA status unknown"
                         ),
                     },
                 },
             },
             "real_time_protection": {
                 "state": "unsupported",
-                "reason": "容器部署未启用 ClamAV On-Access 实时防护；当前仅提供按需扫描",
+                "reason": "ClamAV On-Access real-time protection is not enabled in container deployments; only on-demand scanning is available",
             },
             "quarantine": {"state": "available"},
             "event_center": {"state": "available"},
@@ -249,7 +249,7 @@ class Application:
             },
             "container_security": {
                 "state": container_state,
-                "reason": container_snapshot.get("note") or "容器监控未启用",
+                "reason": container_snapshot.get("note") or "container monitoring is disabled",
                 "monitor": {
                     "enabled": bool(self.config.containers.enabled),
                     "api_url": self.config.containers.api_url,
@@ -269,7 +269,7 @@ class Application:
             "falco": {
                 "state": falco_state,
                 "reason": falco.get("error_message")
-                or ("Falco 未安装" if not falco.get("installed") else "Falco 状态未知"),
+                or ("Falco is not installed" if not falco.get("installed") else "Falco status unknown"),
                 "installed": bool(falco.get("installed")),
                 "version": falco.get("version"),
                 "capability": falco_capability,
@@ -283,9 +283,9 @@ class Application:
                 "state": self._yara_state(yara_component),
                 "reason": yara_component.get("error_message")
                 or (
-                    "YARA 规则扫描可用"
+                    "YARA rule scanning is available"
                     if yara_component.get("health_status") == "ok"
-                    else "YARA 状态未知"
+                    else "YARA status unknown"
                 ),
                 "installed": bool(yara_component.get("installed")),
                 "version": yara_component.get("version"),
@@ -297,9 +297,9 @@ class Application:
                 "state": self._wazuh_state(wazuh_component),
                 "reason": wazuh_component.get("error_message")
                 or (
-                    "Wazuh 集成未启用（可选）"
+                    "Wazuh integration is disabled (optional)"
                     if not self.config.wazuh.enabled
-                    else "本地 Wazuh Agent 状态未知"
+                    else "local Wazuh Agent status unknown"
                 ),
                 "installed": bool(wazuh_component.get("installed")),
                 "version": wazuh_component.get("version"),
@@ -314,8 +314,8 @@ class Application:
                 ),
                 "connection_verified": False,
                 "note": (
-                    "仅读取本地 Agent 状态与本地告警；不是 Wazuh Manager，"
-                    "不提供 Manager API、集群管理或其他 Agent 管理能力"
+                    "Reads only local Agent status and local alerts; it is not a Wazuh Manager "
+                    "and provides no Manager API, cluster management, or other Agent management"
                 ),
                 "ingest": self._wazuh_ingest_summary(),
                 "install_plan_available": not bool(wazuh_component.get("installed")),
@@ -352,18 +352,18 @@ class Application:
                 "ingest_enabled": bool(self.config.wazuh.ingest_enabled),
                 "running": False,
                 "events_total": 0,
-                "note": "本地 Wazuh 告警接入未初始化",
+                "note": "local Wazuh alert ingestion is not initialized",
             }
         try:
             return self.wazuh_ingest.status()
         except Exception as exc:  # status must not break capabilities
-            log.warning("读取 Wazuh 接入状态失败: %s", exc)
+            log.warning("failed to read Wazuh ingestion status: %s", exc)
             return {
                 "enabled": bool(self.config.wazuh.enabled),
                 "ingest_enabled": bool(self.config.wazuh.ingest_enabled),
                 "running": False,
                 "events_total": 0,
-                "error": "无法读取 Wazuh 接入状态",
+                "error": "cannot read Wazuh ingestion status",
             }
 
     def _yara_state(self, component: dict[str, Any]) -> str:
@@ -393,12 +393,12 @@ class Application:
         try:
             snapshot = self.yara.scan_snapshot()
         except Exception as exc:  # a broken rules store must not break status
-            log.warning("读取 YARA 规则状态失败: %s", exc)
+            log.warning("failed to read YARA rule status: %s", exc)
             return {
                 "packs_count": 0,
                 "active_count": 0,
                 "active": [],
-                "error": "无法读取 YARA 规则状态",
+                "error": "cannot read YARA rule status",
             }
         return {
             "packs_count": snapshot.get("packs_count", 0),
@@ -421,7 +421,7 @@ def handle_login(req: RequestContext, app: Application) -> ApiResponse:
     body = req.require_json_object()
     token = body.get("token")
     if not isinstance(token, str) or not token or len(token) > 512:
-        raise invalid("必须提供访问令牌")
+        raise invalid("an access token is required")
     session, role = app.auth.login(token, req.remote_addr)
     if not session:
         try:
@@ -431,12 +431,12 @@ def handle_login(req: RequestContext, app: Application) -> ApiResponse:
                 actor="unknown",
                 client=req.remote_addr,
                 result="failure",
-                error="无效令牌",
+                error="invalid token",
                 request_id=req.request_id,
             )
         except Exception:
             pass
-        raise unauthorized("访问令牌无效")
+        raise unauthorized("invalid access token")
     audit_store.record(
         app.db,
         action="auth.login",
@@ -540,7 +540,7 @@ def handle_component_action(req: RequestContext, app: Application, match: re.Mat
             )
             return json_response({"ok": True, "update": outcome})
         else:  # pragma: no cover - routing prevents this
-            raise not_found("未知操作")
+            raise not_found("unknown operation")
     except LsecError as exc:
         audit_store.record(
             app.db,
@@ -582,13 +582,13 @@ def handle_scan_create(req: RequestContext, app: Application) -> ApiResponse:
     body = req.require_json_object()
     task_type = body.get("type")
     if not isinstance(task_type, str):
-        raise invalid("必须提供扫描类型 type")
+        raise invalid("scan type 'type' is required")
     paths = body.get("paths") or []
     if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths):
-        raise invalid("paths 必须是字符串数组")
+        raise invalid("paths must be a string array")
     engines = body.get("engines") or ["clamav"]
     if not isinstance(engines, list) or not all(isinstance(e, str) for e in engines):
-        raise invalid("engines 必须是字符串数组")
+        raise invalid("engines must be a string array")
     try:
         task = app.scans.create_task(
             task_type=task_type, targets=paths, engines=engines, actor=req.actor
@@ -624,14 +624,14 @@ def handle_scan_create(req: RequestContext, app: Application) -> ApiResponse:
 def handle_scan_get(req: RequestContext, app: Application, match: re.Match[str]) -> ApiResponse:
     task_id = match.group(1)
     if not is_uuid(task_id):
-        raise invalid("任务 ID 格式无效")
+        raise invalid("invalid task ID format")
     return json_response({"ok": True, "task": app.scans.get(task_id)})
 
 
 def handle_scan_cancel(req: RequestContext, app: Application, match: re.Match[str]) -> ApiResponse:
     task_id = match.group(1)
     if not is_uuid(task_id):
-        raise invalid("任务 ID 格式无效")
+        raise invalid("invalid task ID format")
     try:
         task = app.scans.cancel(task_id)
     except LsecError as exc:
@@ -685,9 +685,9 @@ def handle_event_patch(req: RequestContext, app: Application, match: re.Match[st
     status = body.get("status")
     note = body.get("note")
     if not isinstance(status, str):
-        raise invalid("必须提供新状态 status")
+        raise invalid("new status 'status' is required")
     if note is not None and not isinstance(note, str):
-        raise invalid("note 必须是字符串")
+        raise invalid("note must be a string")
     before = app.events.get(event_id)
     try:
         event = app.events.update_status(
@@ -781,7 +781,7 @@ def handle_events_export(req: RequestContext, app: Application) -> ApiResponse:
             headers={"Content-Disposition": f'attachment; filename="lsec-events-{stamp}.csv"'},
         )
     if fmt != "json":
-        raise invalid("format 只能是 json 或 csv")
+        raise invalid("format must be json or csv")
     body = json.dumps(
         {"ok": True, "events": events, "exported_at": now_iso()},
         ensure_ascii=False,
@@ -816,11 +816,11 @@ def handle_quarantine_create(req: RequestContext, app: Application) -> ApiRespon
     body = req.require_json_object()
     path = body.get("path")
     if not isinstance(path, str):
-        raise invalid("必须提供文件路径 path")
+        raise invalid("file path 'path' is required")
     confirmed = body.get("confirm") is True
     event_id = body.get("event_id")
     if event_id is not None and not isinstance(event_id, str):
-        raise invalid("event_id 必须是字符串")
+        raise invalid("event_id must be a string")
     item = app.quarantine.quarantine(
         path=path,
         actor=req.actor,
@@ -857,7 +857,7 @@ def handle_quarantine_action(req: RequestContext, app: Application, match: re.Ma
             confirmed=confirmed,
         )
     else:  # pragma: no cover - routing prevents this
-        raise not_found("未知操作")
+        raise not_found("unknown operation")
     return json_response({"ok": True, "item": item})
 
 
@@ -917,7 +917,7 @@ def handle_audit_create(req: RequestContext, app: Application) -> ApiResponse:
 def handle_audit_get(req: RequestContext, app: Application, match: re.Match[str]) -> ApiResponse:
     audit_id = match.group(1)
     if not is_uuid(audit_id):
-        raise invalid("体检 ID 格式无效")
+        raise invalid("invalid audit ID format")
     return json_response({"ok": True, "audit": app.audits.get(audit_id)})
 
 
@@ -979,11 +979,11 @@ def handle_falco_status(req: RequestContext, app: Application) -> ApiResponse:
 
 def handle_falco_ingest(req: RequestContext, app: Application) -> ApiResponse:
     if not app.auth.falco_token:
-        raise unauthorized("Falco 事件接入未启用")
+        raise unauthorized("Falco event ingestion is not enabled")
     if not app.auth.integration_rate_limiter.check(req.remote_addr):
         raise LsecError(
             ErrorCode.RATE_LIMITED,
-            "Falco 事件接入过于频繁，请稍后再试",
+            "too many Falco event ingestion requests; try again later",
             http_status=429,
         )
     payload = req.require_json_object()
@@ -1003,7 +1003,7 @@ def handle_falco_ingest(req: RequestContext, app: Application) -> ApiResponse:
 def _require_confirmation(req: RequestContext, action: str) -> dict[str, Any]:
     body = req.require_json_object()
     if body.get("confirm") is not True:
-        raise invalid(f"{action}需要显式 confirm=true 二次确认")
+        raise invalid(f"{action} requires an explicit confirm=true confirmation")
     return body
 
 
@@ -1017,7 +1017,7 @@ def handle_yara_status(req: RequestContext, app: Application) -> ApiResponse:
             "packs_count": 0,
             "active_count": 0,
             "active": [],
-            "state_error": "YARA 规则服务未初始化",
+            "state_error": "YARA rule service is not initialized",
         }
     )
     scan_ready = bool(
@@ -1034,8 +1034,8 @@ def handle_yara_status(req: RequestContext, app: Application) -> ApiResponse:
                 "rules": snapshot,
                 "scan_ready": scan_ready,
                 "note": (
-                    "规则包安装、签名校验和激活均需管理员显式确认；"
-                    "规则命中不会自动隔离或删除文件"
+                    "Rule-pack installation, signature verification and activation all require explicit administrator confirmation; "
+                    "rule matches never quarantine or delete files automatically"
                 ),
             },
         }
@@ -1044,7 +1044,7 @@ def handle_yara_status(req: RequestContext, app: Application) -> ApiResponse:
 
 def handle_yara_packs(req: RequestContext, app: Application) -> ApiResponse:
     if not app.yara:
-        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA 规则服务未初始化")
+        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA rule service is not initialized")
     return json_response(
         {
             "ok": True,
@@ -1056,14 +1056,14 @@ def handle_yara_packs(req: RequestContext, app: Application) -> ApiResponse:
 
 def handle_yara_pack_install(req: RequestContext, app: Application) -> ApiResponse:
     if not app.yara:
-        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA 规则服务未初始化")
-    body = _require_confirmation(req, "安装 YARA 规则包")
+        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA rule service is not initialized")
+    body = _require_confirmation(req, "installing a YARA rule pack")
     path = body.get("path")
     activate = body.get("activate", True)
     if not isinstance(path, str) or not path:
-        raise invalid("必须提供规则包路径 path")
+        raise invalid("rule-pack path 'path' is required")
     if not isinstance(activate, bool):
-        raise invalid("activate 必须是布尔值")
+        raise invalid("activate must be a boolean")
     try:
         result = app.yara.install(path, activate=activate)
     except LsecError as exc:
@@ -1106,8 +1106,8 @@ def handle_yara_pack_activate(
     req: RequestContext, app: Application, match: re.Match[str]
 ) -> ApiResponse:
     if not app.yara:
-        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA 规则服务未初始化")
-    body = _require_confirmation(req, "激活 YARA 规则包版本")
+        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA rule service is not initialized")
+    body = _require_confirmation(req, "activating a YARA rule-pack version")
     pack_id, version = match.group(1), match.group(2)
     try:
         result = app.yara.activate(pack_id, version)
@@ -1142,8 +1142,8 @@ def handle_yara_pack_delete(
     req: RequestContext, app: Application, match: re.Match[str]
 ) -> ApiResponse:
     if not app.yara:
-        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA 规则服务未初始化")
-    _require_confirmation(req, "删除 YARA 规则包版本")
+        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "YARA rule service is not initialized")
+    _require_confirmation(req, "deleting a YARA rule-pack version")
     pack_id, version = match.group(1), match.group(2)
     try:
         result = app.yara.delete(pack_id, version)
@@ -1187,9 +1187,9 @@ def handle_wazuh_status(req: RequestContext, app: Application) -> ApiResponse:
                 "scope": "local_agent_only",
                 "connection_verified": False,
                 "note": (
-                    "仅本地 Wazuh Agent 状态与可选 alerts.json 接入；"
-                    "lsec 不是 Wazuh Manager，不提供 Manager 能力，"
-                    "也不会自动隔离或删除文件"
+                    "Local Wazuh Agent status and optional alerts.json ingestion only; "
+                    "lsec is not a Wazuh Manager and provides no Manager capability, "
+                    "and never quarantines or deletes files automatically"
                 ),
                 "install_plan_available": not bool(component.get("installed")),
             },
@@ -1199,7 +1199,7 @@ def handle_wazuh_status(req: RequestContext, app: Application) -> ApiResponse:
 
 def handle_wazuh_install_plan(req: RequestContext, app: Application) -> ApiResponse:
     if not app.wazuh or not hasattr(app.wazuh, "install_plan"):
-        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "Wazuh 安装计划不可用")
+        raise LsecError(ErrorCode.NOT_IMPLEMENTED, "Wazuh install plan is unavailable")
     return json_response({"ok": True, "plan": app.wazuh.install_plan()})
 
 
@@ -1219,8 +1219,8 @@ def handle_settings_get(req: RequestContext, app: Application) -> ApiResponse:
                 "scheduled_scan": True,
             },
             "notes": {
-                "response_mode": "受控自动处置（auto）尚未实现，当前仅支持 alert/suggest",
-                "auto_quarantine_enabled": "自动隔离默认关闭；启用后仍只作用于明确命中的下载文件（尚未实现）",
+                "response_mode": "Controlled automatic response (auto) is not implemented; only alert/suggest are currently supported",
+                "auto_quarantine_enabled": "Automatic quarantine is disabled by default; when enabled it would apply only to explicitly matched downloaded files (not implemented)",
             },
         }
     )
@@ -1232,12 +1232,12 @@ def handle_settings_patch(req: RequestContext, app: Application) -> ApiResponse:
     if clean.get("response_mode") == "auto":
         raise LsecError(
             ErrorCode.NOT_IMPLEMENTED,
-            "自动处置尚未实现；当前只支持仅告警或建议处置",
+            "Automatic response is not implemented; only alert or suggest modes are supported",
         )
     if clean.get("auto_quarantine_enabled") is True:
         raise LsecError(
             ErrorCode.NOT_IMPLEMENTED,
-            "自动隔离尚未实现；请在隔离区手动确认后处置",
+            "Automatic quarantine is not implemented; confirm manually in the quarantine area before acting",
         )
     before = settings_store.get_all(app.db)
     for key, value in clean.items():
@@ -1272,7 +1272,7 @@ def handle_logs(req: RequestContext, app: Application) -> ApiResponse:
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             content = fh.readlines()[-lines:]
     except OSError as exc:
-        raise invalid(f"无法读取日志文件: {exc}") from None
+        raise invalid(f"cannot read log file: {exc}") from None
     return json_response({"ok": True, "file": str(path), "lines": [line.rstrip("\n") for line in content]})
 
 
@@ -1286,17 +1286,17 @@ def serve_static(path: str) -> ApiResponse:
     elif path.startswith("/assets/"):
         name = path[len("/assets/"):]
         if not ASSET_RE.match(name):
-            raise not_found("资源不存在")
+            raise not_found("resource not found")
         relative = name
     else:
-        raise not_found("页面不存在")
+        raise not_found("page not found")
     target = (UI_DIR / relative).resolve()
     try:
         target.relative_to(UI_DIR.resolve())
     except ValueError:
-        raise not_found("资源不存在") from None
+        raise not_found("resource not found") from None
     if not target.is_file():
-        raise not_found("资源不存在")
+        raise not_found("resource not found")
     data = target.read_bytes()
     content_type = CONTENT_TYPES.get(target.suffix, "application/octet-stream")
     cache = "no-cache" if relative == "index.html" else "public, max-age=300"
@@ -1413,7 +1413,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/" or path.startswith("/assets/"):
                 if method != "GET":
-                    raise LsecError(ErrorCode.INVALID_ARGUMENT, "不支持的请求方法", http_status=405)
+                    raise LsecError(ErrorCode.INVALID_ARGUMENT, "unsupported request method", http_status=405)
                 response = serve_static(path)
                 self._send(response)
                 status_code = response.status
@@ -1437,7 +1437,7 @@ class Handler(BaseHTTPRequestHandler):
 
             route = self._match(method, path)
             if not route:
-                raise not_found("接口不存在")
+                raise not_found("endpoint not found")
             _method, match, handler, access = route
             self._enforce_access(req, access)
             if method in {"POST", "PATCH", "DELETE"}:
@@ -1452,9 +1452,9 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             return
         except Exception:
-            log.exception("未处理请求异常 method=%s path=%s", method, path)
+            log.exception("unhandled request exception method=%s path=%s", method, path)
             response = error_response(
-                LsecError(ErrorCode.INTERNAL, "内部错误，请提供请求 ID 联系管理员"),
+                LsecError(ErrorCode.INTERNAL, "internal error; provide the request ID to contact an administrator"),
                 request_id,
             )
             try:
@@ -1492,9 +1492,9 @@ class Handler(BaseHTTPRequestHandler):
             token = header[len("Bearer "):].strip()
             if req.path == "/api/v1/integrations/falco":
                 if not app.auth.falco_token:
-                    raise unauthorized("Falco 事件接入未启用")
+                    raise unauthorized("Falco event ingestion is not enabled")
                 if not app.auth.falco_token_valid(token):
-                    raise unauthorized("Falco 接入令牌无效")
+                    raise unauthorized("invalid Falco integration token")
                 req.role = "integration"
                 req.actor = "falco"
                 req.bearer = True
@@ -1502,7 +1502,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             role = app.auth.token_role(token)
             if not role:
-                raise unauthorized("访问令牌无效")
+                raise unauthorized("invalid access token")
             req.role = role
             req.actor = role
             req.bearer = True
@@ -1522,7 +1522,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if access == "integration":
             if req.role != "integration":
-                raise unauthorized("Falco 接入令牌无效")
+                raise unauthorized("invalid Falco integration token")
             return
         if not req.role:
             raise unauthorized()
@@ -1536,13 +1536,13 @@ class Handler(BaseHTTPRequestHandler):
             raise unauthorized()
         supplied = self.headers.get("X-LSEC-CSRF")
         if not csrf_valid(req.session, supplied):
-            raise LsecError(ErrorCode.FORBIDDEN, "CSRF 校验失败，请重新登录")
+            raise LsecError(ErrorCode.FORBIDDEN, "CSRF validation failed; log in again")
         origin = self.headers.get("Origin")
         if origin:
             host = self.headers.get("Host", "")
             origin_host = urlsplit(origin).netloc
             if origin_host and host and origin_host != host:
-                raise LsecError(ErrorCode.FORBIDDEN, "跨站请求被拒绝")
+                raise LsecError(ErrorCode.FORBIDDEN, "cross-site request rejected")
 
     def _read_body(self) -> dict[str, Any] | None:
         app: Application = self.server.app  # type: ignore[attr-defined]
@@ -1552,21 +1552,21 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(raw_length)
         except ValueError:
-            raise invalid("Content-Length 无效") from None
+            raise invalid("invalid Content-Length") from None
         if length <= 0:
             return None
         if length > app.config.server.max_body_bytes:
-            raise LsecError(ErrorCode.INVALID_ARGUMENT, "请求体过大", http_status=413)
+            raise LsecError(ErrorCode.INVALID_ARGUMENT, "request body too large", http_status=413)
         content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         if content_type != "application/json":
-            raise LsecError(ErrorCode.INVALID_ARGUMENT, "Content-Type 必须是 application/json", http_status=415)
+            raise LsecError(ErrorCode.INVALID_ARGUMENT, "Content-Type must be application/json", http_status=415)
         data = self.rfile.read(length)
         try:
             parsed = json.loads(data.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            raise invalid("请求体不是合法 JSON") from None
+            raise invalid("request body is not valid JSON") from None
         if not isinstance(parsed, dict):
-            raise invalid("请求体必须是 JSON 对象")
+            raise invalid("request body must be a JSON object")
         return parsed
 
     def _send(self, response: ApiResponse) -> None:
@@ -1610,7 +1610,7 @@ class LsecHTTPServer(ThreadingHTTPServer):
         super().__init__(address, Handler)
 
     def handle_error(self, request: Any, client_address: Any) -> None:
-        log.exception("连接处理异常 client=%s", client_address)
+        log.exception("connection handling exception client=%s", client_address)
 
 
 def create_server(app: Application) -> LsecHTTPServer:

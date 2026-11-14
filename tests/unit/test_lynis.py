@@ -110,7 +110,7 @@ class LynisAdapterTests(unittest.TestCase):
         self.assertEqual(probe.error_code, "not_installed")
         outcome = adapter.run_audit(self.root / "work", timeout=5)
         self.assertFalse(outcome.available)
-        self.assertIn("未检测到", outcome.error or "")
+        self.assertIn("not detected", outcome.error or "")
 
     def test_run_audit_parses_report_and_restricts_permissions(self) -> None:
         adapter = LynisAdapter(str(self.script))

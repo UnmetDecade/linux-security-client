@@ -66,7 +66,7 @@ def setup_logging(
             except OSError:
                 pass
         except OSError as exc:  # pragma: no cover - environment dependent
-            root.warning("无法打开日志文件 %s: %s", log_file, exc)
+            root.warning("cannot open log file %s: %s", log_file, exc)
 
     _CONFIGURED = True
 

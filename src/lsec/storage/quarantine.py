@@ -53,7 +53,7 @@ def add_item(
 def get_item(db: Database, item_id: str) -> dict[str, Any]:
     row = db.query_one("SELECT * FROM quarantine_items WHERE item_id = ?", (item_id,))
     if not row:
-        raise not_found("隔离项不存在")
+        raise not_found("quarantine item not found")
     return dict(row)
 
 

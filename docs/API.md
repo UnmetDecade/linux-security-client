@@ -1,71 +1,73 @@
 # HTTP API
 
-基础路径：`/api/v1`。所有响应为 JSON（导出接口除外）。成功响应包含 `"ok": true`；失败响应为：
+**English** | [简体中文](API.zh-CN.md)
+
+Base path: `/api/v1`. All responses are JSON (except export endpoints). Successful responses contain `"ok": true`; failure responses look like:
 
 ```json
 {
   "ok": false,
   "error": {
     "code": "invalid_argument",
-    "message": "人类可读的说明",
-    "details": {"...": "可选"},
+    "message": "human-readable description",
+    "details": {"...": "optional"},
     "request_id": "..."
   }
 }
 ```
 
-## 认证
+## Authentication
 
-### Bearer Token（CLI）
+### Bearer Token (CLI)
 
 ```http
 Authorization: Bearer <token>
 ```
 
-### Web 会话
+### Web session
 
-`POST /api/v1/auth/login` 成功后设置 HttpOnly、SameSite=Strict 的 `lsec_session` Cookie，并在响应体返回一次性 `csrf_token`。后续写操作（POST/PATCH/DELETE）必须同时携带：
+After a successful `POST /api/v1/auth/login`, the server sets an HttpOnly, SameSite=Strict `lsec_session` Cookie and returns a one-time `csrf_token` in the response body. Subsequent write operations (POST/PATCH/DELETE) must also carry:
 
 ```http
 X-LSEC-CSRF: <csrf_token>
 ```
 
-Cookie 会话的写请求如果带 `Origin`，其 host 必须与 `Host` 一致。
+For write requests on a Cookie session, if an `Origin` header is present, its host must match `Host`.
 
-### 角色
+### Roles
 
-| 角色 | 权限 |
+| Role | Permissions |
 | --- | --- |
-| `admin` | 读取 + 扫描/取消、组件启停/更新、事件状态、隔离/恢复/删除、容器刷新、策略修改、日志 |
-| `viewer` | 读取状态、组件、任务、事件、隔离区、审计、自检、设置、容器清单 |
-| `integration` | 仅 Falco 事件接入；不能读取任何其他 API |
+| `admin` | Read + scan/cancel, component start/stop/update, event status, quarantine/restore/delete, container refresh, policy changes, logs |
+| `viewer` | Read status, components, tasks, events, quarantine, audit, self-check, settings, container inventory |
+| `integration` | Falco event ingestion only; cannot read any other API |
 
-令牌文件：`/data/secrets/admin.token`、`/data/secrets/viewer.token`，权限 0600。也可用 `LSEC_ADMIN_TOKEN` / `LSEC_VIEWER_TOKEN` 覆盖（至少 16 字符）。
+Token files: `/data/secrets/admin.token`, `/data/secrets/viewer.token`, mode 0600. They can also be overridden with `LSEC_ADMIN_TOKEN` / `LSEC_VIEWER_TOKEN` (at least 16 characters).
 
-Falco 使用独立令牌 `/data/secrets/falco.token`（启用 `falco.ingest_enabled` 时自动创建，0600）。它不在管理员/只读令牌表中，反向也不允许管理员/只读令牌调用 Falco 接入端点。
+Falco uses a separate token `/data/secrets/falco.token` (created automatically when `falco.ingest_enabled` is enabled, 0600). It is not in the administrator/read-only token table, and conversely administrator/read-only tokens are not allowed to call the Falco ingestion endpoint.
 
-## 通用
+## General
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/health` | 公开 | 存活检查 |
-| POST | `/auth/login` | 公开 | 登录，返回角色与 CSRF |
-| POST | `/auth/logout` | 登录 | 注销当前会话 |
-| GET | `/version` | 登录 | 守护进程/API 版本 |
-| GET | `/system/info` | 登录 | 主机与守护进程信息 |
-| GET | `/status` | 登录 | 汇总防护状态 |
-| GET | `/capabilities` | 登录 | 能力矩阵 |
+| GET | `/health` | public | Liveness check |
+| POST | `/auth/login` | public | Log in, returns the role and CSRF |
+| POST | `/auth/logout` | logged in | Log out the current session |
+| GET | `/version` | logged in | Daemon/API version |
+| GET | `/system/info` | logged in | Host and daemon information |
+| GET | `/status` | logged in | Aggregated protection status |
+| GET | `/capabilities` | logged in | Capability matrix |
 
-`/status` 示例（节选）：
+`/status` example (excerpt):
 
 ```json
 {
   "ok": true,
   "status": {
     "overall": "protection_incomplete",
-    "overall_label": "防护不完整",
+    "overall_label": "Protection incomplete",
     "protection": {
-      "on_demand": {"state": "ready", "reason": "ClamAV 按需扫描可用"},
+      "on_demand": {"state": "ready", "reason": "ClamAV on-demand scanning available"},
       "real_time": {"state": "unsupported", "supported": false, "reason": "..."},
       "virus_database": {"state": "current", "updated_at": "...", "age_hours": 1.2}
     },
@@ -75,29 +77,29 @@ Falco 使用独立令牌 `/data/secrets/falco.token`（启用 `falco.ingest_enab
 }
 ```
 
-## 组件
+## Components
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/components` | 登录 | 组件真实状态 |
-| POST | `/components/probe` | admin | 重新探测全部组件 |
-| GET | `/components/{id}/install-plan` | 登录 | 安装来源与权限说明 |
-| POST | `/components/clamav/start` | admin | 启动 clamd |
-| POST | `/components/clamav/stop` | admin | 停止 clamd |
-| POST | `/components/clamav/update` | admin | freshclam 更新病毒库 |
+| GET | `/components` | logged in | Real component state |
+| POST | `/components/probe` | admin | Re-probe all components |
+| GET | `/components/{id}/install-plan` | logged in | Install source and permission notes |
+| POST | `/components/clamav/start` | admin | Start clamd |
+| POST | `/components/clamav/stop` | admin | Stop clamd |
+| POST | `/components/clamav/update` | admin | Update the virus database with freshclam |
 
-更新返回 `{"ok": true, "update": {"ok": true, "exit_code": 0, "duration_seconds": 12.3, "output_tail": "...", "database": {...}}}`。
+An update returns `{"ok": true, "update": {"ok": true, "exit_code": 0, "duration_seconds": 12.3, "output_tail": "...", "database": {...}}}`.
 
-## 扫描任务
+## Scan tasks
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/scans?status=&limit=&offset=` | 登录 | 任务列表 |
-| POST | `/scans` | admin | 创建任务 |
-| GET | `/scans/{task_id}` | 登录 | 任务详情 |
-| POST | `/scans/{task_id}/cancel` | admin | 请求取消 |
+| GET | `/scans?status=&limit=&offset=` | logged in | Task list |
+| POST | `/scans` | admin | Create a task |
+| GET | `/scans/{task_id}` | logged in | Task details |
+| POST | `/scans/{task_id}/cancel` | admin | Request cancellation |
 
-创建请求：
+Create requests:
 
 ```json
 {"type": "quick", "engines": ["clamav"]}
@@ -106,22 +108,22 @@ Falco 使用独立令牌 `/data/secrets/falco.token`（启用 `falco.ingest_enab
 {"type": "yara", "paths": ["/scan/downloads"], "engines": ["yara"]}
 ```
 
-`type` 支持 `quick/full/custom/yara`；`engines` 支持 `clamav`、`yara`，缺省为 `["clamav"]`。`type=yara` 只允许 YARA 引擎且必须提供 `paths`。自定义路径必须存在且位于 `scan.allowed_roots` 内。多引擎扫描时单个引擎失败记为部分完成并保留各引擎错误；全部引擎失败才是 `failed`。任务状态：
+`type` supports `quick/full/custom/yara`; `engines` supports `clamav` and `yara`, defaulting to `["clamav"]`. `type=yara` allows only the YARA engine and requires `paths`. Custom paths must exist and be inside `scan.allowed_roots`. For multi-engine scans, failure of a single engine is recorded as partial completion with each engine's error retained; only failure of all engines is `failed`. Task states:
 
-`queued`、`running`、`cancel_requested`、`cancelled`、`succeeded`、`failed`、`partial`。
+`queued`, `running`, `cancel_requested`, `cancelled`, `succeeded`, `failed`, `partial`.
 
-`progress` 在文件总数未知时为 `null`。`result_summary.detections_sample` 最多 500 条；证据报告路径为 `result_summary.evidence_path`。
+`progress` is `null` when the total file count is unknown. `result_summary.detections_sample` holds at most 500 entries; the evidence report path is `result_summary.evidence_path`.
 
-## 安全事件
+## Security events
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/events?severity=&source=&category=&status=&q=&since=&until=&limit=&offset=` | 登录 | 列表 |
-| GET | `/events/{event_id}` | 登录 | 详情 |
-| PATCH | `/events/{event_id}` | admin | 状态流转与备注 |
-| GET | `/events/export?format=json|csv&...` | 登录 | 导出（最多 5000 条） |
+| GET | `/events?severity=&source=&category=&status=&q=&since=&until=&limit=&offset=` | logged in | List |
+| GET | `/events/{event_id}` | logged in | Details |
+| PATCH | `/events/{event_id}` | admin | Status transition and note |
+| GET | `/events/export?format=json|csv&...` | logged in | Export (at most 5000 entries) |
 
-状态流转：
+Status transitions:
 
 ```
 new -> acknowledged | investigating | resolved | ignored
@@ -131,81 +133,81 @@ resolved -> new
 ignored -> new
 ```
 
-PATCH 请求：`{"status": "acknowledged", "note": "已人工核实"}`。
+PATCH request: `{"status": "acknowledged", "note": "manually verified"}`.
 
-CSV 导出对以 `= + - @` 开头的单元格加 `'` 前缀，避免电子表格公式注入。
+For CSV export, cells beginning with `= + - @` are prefixed with `'` to prevent spreadsheet formula injection.
 
-## 隔离区
+## Quarantine
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/quarantine?status=&limit=&offset=` | 登录 | 列表 |
-| POST | `/quarantine` | admin | 隔离文件 |
-| GET | `/quarantine/{item_id}` | 登录 | 详情（含 `file_exists`、`stored_path`） |
-| POST | `/quarantine/{item_id}/restore` | admin | 恢复 |
-| POST | `/quarantine/{item_id}/delete` | admin | 永久删除 |
+| GET | `/quarantine?status=&limit=&offset=` | logged in | List |
+| POST | `/quarantine` | admin | Quarantine a file |
+| GET | `/quarantine/{item_id}` | logged in | Details (including `file_exists`, `stored_path`) |
+| POST | `/quarantine/{item_id}/restore` | admin | Restore |
+| POST | `/quarantine/{item_id}/delete` | admin | Permanently delete |
 
-隔离请求必须包含 `"confirm": true`：
+A quarantine request must include `"confirm": true`:
 
 ```json
 {
   "path": "/scan/eicar.txt",
   "detection_name": "Eicar-Signature",
   "engine": "clamav",
-  "event_id": "<可选>",
+  "event_id": "<optional>",
   "confirm": true
 }
 ```
 
-恢复/删除请求体：`{"confirm": true}`。
+Restore/delete request body: `{"confirm": true}`.
 
-## 主机体检
+## Host security audit
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/audits?limit=20&offset=0` | 登录 | 体检历史（不含大字段），并返回当前排队/运行的体检 |
-| POST | `/audits` | admin | 创建只读主机体检，返回 202；已有体检运行时返回 409 |
-| GET | `/audits/{audit_id}` | 登录 | 体检详情，含 `result_summary.checks`、Lynis 结果与证据路径 |
+| GET | `/audits?limit=20&offset=0` | logged in | Audit history (without large fields), also returns the currently queued/running audit |
+| POST | `/audits` | admin | Create a read-only host security audit, returns 202; returns 409 when an audit is already running |
+| GET | `/audits/{audit_id}` | logged in | Audit details, including `result_summary.checks`, Lynis results, and the evidence path |
 
-体检状态：`queued`、`running`、`succeeded`、`partial`、`failed`。检查状态：`pass`、`finding`、`error`、`skipped`；只有 `finding` 会生成统一事件，`error` 表示检查未能执行，不代表存在风险。
+Audit states: `queued`, `running`, `succeeded`, `partial`, `failed`. Check states: `pass`, `finding`, `error`, `skipped`; only `finding` produces a unified event, while `error` means the check could not be executed and does not imply a risk.
 
-`POST /audits` 不需要请求体，返回：
+`POST /audits` needs no request body and returns:
 
 ```json
 {"ok": true, "audit": {"audit_id": "...", "status": "queued", "scope": "container"}}
 ```
 
-体检在后台串行执行；客户端应轮询 `GET /audits/{audit_id}` 直到状态进入 `succeeded/partial/failed`。详情中的关键字段：
+Audits run serially in the background; clients should poll `GET /audits/{audit_id}` until the state reaches `succeeded/partial/failed`. Key fields in the details:
 
-- `findings_count`、`errors_count`、`severity_counts`
-- `hardening_index`、`lynis_available`、`lynis_version`
-- `evidence_path`：`report.json` 与原始 `lynis-report.dat` / `lynis.log` 所在目录
-- `result_summary.scope_note`、`limitations`、`system_info`、`counts`
+- `findings_count`, `errors_count`, `severity_counts`
+- `hardening_index`, `lynis_available`, `lynis_version`
+- `evidence_path`: the directory containing `report.json` and the raw `lynis-report.dat` / `lynis.log`
+- `result_summary.scope_note`, `limitations`, `system_info`, `counts`
 
-体检不会修改系统配置，也不会自动修复或处置。
+The audit does not modify system configuration and does not automatically fix or remediate anything.
 
-## 容器安全
+## Container security
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/containers` | 登录 | 容器监控快照：状态、引擎信息、清单、汇总、限制说明 |
-| GET | `/containers/{ref}` | 登录 | 单个容器详情；`ref` 可为完整 ID、唯一 ID 前缀或容器名称 |
-| POST | `/containers/refresh` | admin | 立即执行一次只读采集并写入审计 `container.refresh` |
-| GET | `/falco` | 登录 | Falco 组件、能力、事件接入统计 |
-| POST | `/integrations/falco` | integration | 接收 Falco JSON 告警，返回 202 |
+| GET | `/containers` | logged in | Container monitoring snapshot: state, engine information, inventory, summary, limitation notes |
+| GET | `/containers/{ref}` | logged in | Single container details; `ref` can be the full ID, a unique ID prefix, or the container name |
+| POST | `/containers/refresh` | admin | Perform one immediate read-only collection and write the audit `container.refresh` |
+| GET | `/falco` | logged in | Falco component, capabilities, event ingestion statistics |
+| POST | `/integrations/falco` | integration | Receive Falco JSON alerts, returns 202 |
 
-容器监控状态：`disabled`、`initializing`、`monitored`、`degraded`、`unavailable`、`permission_denied`。失败时保留的上次快照会带 `stale: true`；从未成功时清单为空，不会返回虚构数据。
+Container monitoring states: `disabled`, `initializing`, `monitored`, `degraded`, `unavailable`, `permission_denied`. On failure, the retained last snapshot carries `stale: true`; if it has never succeeded, the inventory is empty and no fabricated data is returned.
 
-单个容器风险级别：`critical`、`high`、`medium`、`low`、`none`、`unknown`。`evaluated: false` 表示详情字段不足或读取失败，`risk_level` 为 `unknown`，**不能**解读为安全。
+Single-container risk levels: `critical`, `high`, `medium`, `low`, `none`, `unknown`. `evaluated: false` means the detail fields are insufficient or the read failed, and `risk_level` is `unknown`, which **must not** be interpreted as safe.
 
-`GET /containers` 响应节选：
+`GET /containers` response excerpt:
 
 ```json
 {
   "ok": true,
   "containers": {
     "state": "monitored",
-    "note": "已读取 3 个容器，运行中 2 个；3 个存在配置风险",
+    "note": "Read 3 containers, 2 running; 3 have configuration risks",
     "engine": {"runtime": "docker", "server_version": "27.1.1", "api_version": "1.46"},
     "summary": {
       "total": 3, "running": 2, "stopped": 1, "risky": 3, "unknown": 0,
@@ -217,15 +219,15 @@ CSV 导出对以 `= + - @` 开头的单元格加 `'` 前缀，避免电子表格
     "stale": false,
     "truncated": false,
     "containers": [{"container_id": "...", "name": "web", "image": "nginx:latest", "state": "running", "risk_level": "high", "findings": []}],
-    "scope_note": "容器清单来自 Docker Engine API…",
+    "scope_note": "The container inventory comes from the Docker Engine API…",
     "limitations": ["…"]
   }
 }
 ```
 
-`GET /falco` 返回组件探测结果（`component.details.capability` 含内核、BTF、capability 状态）以及 `event_ingest.enabled/endpoint/token_path/events_total/last_event_at`。只显示令牌路径，不显示令牌内容。
+`GET /falco` returns the component probe result (`component.details.capability` includes kernel, BTF, and capability states) plus `event_ingest.enabled/endpoint/token_path/events_total/last_event_at`. Only the token path is shown, never the token contents.
 
-### Falco 事件接入
+### Falco event ingestion
 
 ```http
 POST /api/v1/integrations/falco
@@ -251,46 +253,46 @@ Content-Type: application/json
 }
 ```
 
-成功返回 `202`：
+Success returns `202`:
 
 ```json
 {"ok": true, "event_id": "...", "created": true}
 ```
 
-同一规则、容器和进程在去重窗口内重复上报时 `created` 为 `false`，事件 `occurrences` 累加。请求体上限由 `falco.max_event_bytes` 控制（默认 32 KB）；非法 JSON、非对象、缺少规则/输出或 `output_fields` 非对象会返回 400。接入限速 240 次/分钟。
+When the same rule, container, and process are reported repeatedly within the deduplication window, `created` is `false` and the event's `occurrences` are accumulated. The request body limit is controlled by `falco.max_event_bytes` (default 32 KB); invalid JSON, a non-object, a missing rule/output, or a non-object `output_fields` returns 400. Ingestion is rate-limited to 240 requests/minute.
 
-本版本**不存在**容器停止、重启、删除、执行命令的 API；任何此类请求都会 404。
+This version has **no** API for stopping, restarting, or deleting containers or executing commands; any such request returns 404.
 
-## YARA 规则包
+## YARA rule packs
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/yara` | 登录 | 组件、活跃规则包、签名配置与扫描就绪状态 |
-| GET | `/yara/packs` | 登录 | 所有规则包及版本（含激活标记与签名校验结果） |
-| POST | `/yara/packs` | admin | 从 inbox 安装规则包 |
-| POST | `/yara/packs/{pack_id}/{version}/activate` | admin | 激活指定版本 |
-| DELETE | `/yara/packs/{pack_id}/{version}` | admin | 删除指定版本 |
+| GET | `/yara` | logged in | Component, active rule pack, signature configuration, and scan readiness |
+| GET | `/yara/packs` | logged in | All rule packs and versions (including the activation flag and signature verification result) |
+| POST | `/yara/packs` | admin | Install a rule pack from the inbox |
+| POST | `/yara/packs/{pack_id}/{version}/activate` | admin | Activate the specified version |
+| DELETE | `/yara/packs/{pack_id}/{version}` | admin | Delete the specified version |
 
-安装请求：
+Install request:
 
 ```json
 {"path": "/data/yara/inbox/pack.zip", "activate": true, "confirm": true}
 ```
 
-- `confirm` 必须为 `true`，否则返回 400；安装/激活/删除均写入审计。
-- 源文件必须位于 `yara.inbox_dir` 内；拒绝符号链接、路径穿越、未声明文件、SHA-256 不符、`yarac` 编译失败和同版本覆盖。
-- `yara.require_signature=true` 时必须存在有效 `manifest.sig` 与已配置公钥；签名验证失败返回 400。
-- 成功安装返回 201：`{"ok":true,"pack":{...},"component":{...}}`。
-- 规则包格式与签名步骤见 [部署与运维](DEPLOYMENT.md)。
+- `confirm` must be `true`, otherwise 400; installation/activation/deletion are all written to the audit log.
+- The source file must be inside `yara.inbox_dir`; symlinks, path traversal, undeclared files, SHA-256 mismatches, `yarac` compile failures, and same-version overwrites are rejected.
+- When `yara.require_signature=true`, a valid `manifest.sig` and a configured public key must exist; a failed signature verification returns 400.
+- A successful install returns 201: `{"ok":true,"pack":{...},"component":{...}}`.
+- For the rule pack format and signing steps, see [Deployment and operations](DEPLOYMENT.md).
 
-## Wazuh（可选，仅本地）
+## Wazuh (optional, local only)
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/wazuh` | 登录 | 本地 Agent 探测、Manager 配置摘要、告警接入状态 |
-| GET | `/wazuh/install-plan` | 登录 | 只读安装/注册计划（不会自动执行） |
+| GET | `/wazuh` | logged in | Local Agent probe, Manager configuration summary, alert ingestion status |
+| GET | `/wazuh/install-plan` | logged in | Read-only install/registration plan (never executed automatically) |
 
-`/wazuh` 返回的 `state` 只会是 `disabled/unavailable/degraded/unknown/available`，且 `connection_verified` 恒为 `false`。`ingest` 只描述本地 `alerts.json` 的新增行接入：
+The `state` returned by `/wazuh` is only ever `disabled/unavailable/degraded/unknown/available`, and `connection_verified` is always `false`. `ingest` describes only ingestion of new lines from the local `alerts.json`:
 
 ```json
 {
@@ -303,42 +305,42 @@ Content-Type: application/json
   "offset": 84512,
   "file_present": true,
   "scope": "local_agent_alert_file",
-  "note": "仅接入本地 Wazuh Agent alerts.json 的新增行；不是 Wazuh Manager，也不验证 Manager 连接"
+  "note": "Only ingests new lines from the local Wazuh Agent alerts.json; it is not a Wazuh Manager and does not verify the Manager connection"
 }
 ```
 
-- 本客户端不联系 Wazuh Manager、不提供 Manager API、不管理其他 Agent。
-- 接入事件为 `source=wazuh`；`source_ref.manager_connection_verified=false`。
-- 首次启用从文件末尾开始，不导入历史告警；Agent 未运行、Manager 未配置或连接未验证均显示为降级。
-- 安装计划 `installable_from_ui=false`，仅列出管理员需在宿主机执行的步骤。
+- This client does not contact the Wazuh Manager, does not provide a Manager API, and does not manage other Agents.
+- Ingested events have `source=wazuh`; `source_ref.manager_connection_verified=false`.
+- On first enable it starts at the end of the file and does not import historical alerts; an Agent that is not running, an unconfigured Manager, or an unverified connection are all shown as degraded.
+- The install plan has `installable_from_ui=false` and only lists the steps an administrator must perform on the host.
 
-## 审计、设置、自检、日志
+## Audit, settings, self-check, logs
 
-| 方法 | 路径 | 权限 | 说明 |
+| Method | Path | Permission | Description |
 | --- | --- | --- | --- |
-| GET | `/audit?limit=&offset=&action=` | 登录 | 操作审计 |
-| GET | `/doctor` | 登录 | 运行环境自检（会触发组件探测） |
-| GET | `/settings` | 登录 | 运行时设置与可编辑范围 |
-| PATCH | `/settings` | admin | 修改策略 |
-| GET | `/logs?lines=200` | admin | 守护进程日志尾部 |
+| GET | `/audit?limit=&offset=&action=` | logged in | Operation audit |
+| GET | `/doctor` | logged in | Runtime environment self-check (triggers component probing) |
+| GET | `/settings` | logged in | Runtime settings and editable scope |
+| PATCH | `/settings` | admin | Modify policy |
+| GET | `/logs?lines=200` | admin | Tail of the daemon log |
 
-设置项只有：`response_mode`（`alert/suggest`；`auto` 返回 501）、`auto_quarantine_enabled`（true 返回 501）、`scheduled_scan`（`enabled`、`type`、`interval_hours` 1–720、`last_run_at`）。
+The only settings are: `response_mode` (`alert/suggest`; `auto` returns 501), `auto_quarantine_enabled` (true returns 501), and `scheduled_scan` (`enabled`, `type`, `interval_hours` 1–720, `last_run_at`).
 
-## 错误码
+## Error codes
 
-| code | HTTP | 含义 |
+| code | HTTP | Meaning |
 | --- | --- | --- |
-| `invalid_argument` | 400 | 参数/路径/状态转换无效 |
-| `unauthorized` | 401 | 未认证或令牌无效 |
-| `forbidden` | 403 | 角色不足、CSRF/Origin 校验失败 |
-| `not_found` | 404 | 资源不存在 |
-| `conflict` | 409 | 状态冲突、队列满、路径被占用、哈希不符 |
-| `rate_limited` | 429 | 登录过于频繁 |
-| `component_unavailable` | 503 | ClamAV 未安装/未运行/病毒库缺失 |
-| `not_implemented` | 501 | 后续阶段能力或未实现的自动处置 |
-| `internal_error` | 500 | 内部错误，响应内含请求 ID |
+| `invalid_argument` | 400 | Invalid parameter/path/state transition |
+| `unauthorized` | 401 | Not authenticated or invalid token |
+| `forbidden` | 403 | Insufficient role, CSRF/Origin validation failed |
+| `not_found` | 404 | Resource does not exist |
+| `conflict` | 409 | State conflict, queue full, path in use, hash mismatch |
+| `rate_limited` | 429 | Too many login attempts |
+| `component_unavailable` | 503 | ClamAV not installed/not running/virus database missing |
+| `not_implemented` | 501 | Capability for a later phase or unimplemented automatic response |
+| `internal_error` | 500 | Internal error; the response includes the request ID |
 
-## curl 示例
+## curl examples
 
 ```bash
 TOKEN=$(docker compose exec -T lsec cat /data/secrets/admin.token)
@@ -360,7 +362,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/v1/wazuh
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/api/v1/wazuh/install-plan
 
-# Falco 接入必须使用独立令牌（不要把管理员令牌用于接入）
+# Falco ingestion must use the separate token (do not use the administrator token for ingestion)
 FALCO_TOKEN=$(docker compose exec -T lsec cat /data/secrets/falco.token)
 curl -s -X POST -H "Authorization: Bearer $FALCO_TOKEN" -H 'Content-Type: application/json' \
      -d @falco-event.json http://127.0.0.1:8080/api/v1/integrations/falco

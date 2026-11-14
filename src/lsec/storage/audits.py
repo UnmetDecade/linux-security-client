@@ -114,7 +114,7 @@ def recover_interrupted(db: Database) -> int:
         cur = conn.execute(
             "UPDATE audit_runs SET status = 'failed', finished_at = ?, "
             "error = ? WHERE status IN ('queued','running')",
-            (now_iso(), "守护进程重启，体检已中断；请重新运行"),
+            (now_iso(), "daemon restarted; the audit was interrupted; run it again"),
         )
         return cur.rowcount
 
@@ -124,7 +124,7 @@ def get_run(db: Database, audit_id: str) -> dict[str, Any]:
         f"SELECT {_ALL_COLUMNS} FROM audit_runs WHERE audit_id = ?", (audit_id,)
     )
     if not row:
-        raise not_found("体检记录不存在")
+        raise not_found("audit run not found")
     return _row(row, include_summary=True)
 
 

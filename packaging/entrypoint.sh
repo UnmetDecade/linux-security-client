@@ -20,11 +20,11 @@ for candidate in /var/lib/clamav/daily.cvd /var/lib/clamav/daily.cld; do
 done
 
 if [ "$has_main" -eq 0 ] || [ "$has_daily" -eq 0 ]; then
-    echo "lsec: 未找到 ClamAV 病毒库，首次启动前下载（可能需要数分钟）…" >&2
+    echo "lsec: ClamAV signature database not found; downloading before first start (this may take several minutes)..." >&2
     if freshclam --datadir=/var/lib/clamav --stdout; then
-        echo "lsec: 病毒库下载完成" >&2
+        echo "lsec: signature database download complete" >&2
     else
-        echo "lsec: 病毒库下载失败；守护进程仍会启动，可在 Web 界面中重试更新" >&2
+        echo "lsec: signature database download failed; the daemon will still start and updates can be retried from the web UI" >&2
     fi
 fi
 

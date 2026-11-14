@@ -200,7 +200,7 @@ def get_event(db: Database, event_id: str) -> dict[str, Any]:
         f"SELECT {_EVENT_COLUMNS} FROM events WHERE event_id = ?", (event_id,)
     )
     if not row:
-        raise not_found("事件不存在")
+        raise not_found("event not found")
     return _row_to_event(row)
 
 
@@ -208,13 +208,13 @@ def update_status(
     db: Database, event_id: str, new_status: str, *, actor: str, note: str | None = None
 ) -> dict[str, Any]:
     if new_status not in STATUSES:
-        raise invalid("无效的事件状态")
+        raise invalid("invalid event status")
     current = get_event(db, event_id)
     if new_status == current["status"]:
         return current
     if new_status not in ALLOWED_TRANSITIONS.get(current["status"], set()):
         raise invalid(
-            f"不允许从 {current['status']} 变更为 {new_status}",
+            f"transition from {current['status']} to {new_status} is not allowed",
             {"allowed": sorted(ALLOWED_TRANSITIONS.get(current["status"], []))},
         )
     now = now_iso()

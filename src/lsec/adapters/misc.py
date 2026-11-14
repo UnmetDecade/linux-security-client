@@ -30,13 +30,13 @@ from .base import (
     ProbeResult,
 )
 
-_PENDING_NOTE = "已检测到安装，但本阶段仅提供组件探测；功能集成将在后续阶段交付，不视为正在防护"
+_PENDING_NOTE = "Installation detected, but this stage only provides component probing; functional integration arrives in a later stage and is not considered active protection"
 
 
 class ProbeOnlyAdapter(Adapter):
     binary: str = ""
     component_id = "unknown"
-    display_name = "未知组件"
+    display_name = "Unknown Component"
     version_args: tuple[str, ...] = ("--version",)
 
     def __init__(self, note: str = _PENDING_NOTE) -> None:
@@ -62,7 +62,7 @@ class ProbeOnlyAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message=f"未检测到 {self.binary}",
+                error_message=f"{self.binary} not detected",
                 details={"binary": None, "integration": "not_implemented"},
             )
         return ProbeResult(
@@ -81,7 +81,7 @@ class ProbeOnlyAdapter(Adapter):
 
 class SystemAdapter(Adapter):
     component_id = "system"
-    display_name = "systemd / journald 系统能力"
+    display_name = "systemd / journald System Capabilities"
 
     def probe(self) -> ProbeResult:
         systemd = os.path.isdir("/run/systemd/system")
@@ -95,7 +95,7 @@ class SystemAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message="当前环境未检测到 systemd/journald（容器内通常不可用）",
+                error_message="systemd/journald not detected in this environment (usually unavailable in containers)",
                 details={"systemd": False, "journalctl": None},
             )
         return ProbeResult(
@@ -106,7 +106,7 @@ class SystemAdapter(Adapter):
             health_status=HEALTH_UNKNOWN,
             capabilities=[],
             error_code="integration_pending",
-            error_message="系统能力已探测，日志/审计集成将在后续阶段交付",
+            error_message="System capabilities detected; logging/audit integration arrives in a later stage",
             details={
                 "systemd": systemd,
                 "journalctl": journalctl,
@@ -117,7 +117,7 @@ class SystemAdapter(Adapter):
 
 class DockerAdapter(Adapter):
     component_id = "docker"
-    display_name = "Docker 容器运行时"
+    display_name = "Docker Container Runtime"
 
     SOCKETS = ("/var/run/docker.sock", "/run/docker.sock")
 
@@ -171,7 +171,7 @@ class DockerAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message="未检测到 Docker 客户端、Socket 或可访问的只读 API 代理",
+                error_message="Docker client, socket, or reachable read-only API proxy not detected",
                 details=details,
             )
 
@@ -186,8 +186,8 @@ class DockerAdapter(Adapter):
                 capabilities=["container_inventory", "configuration_checks"],
                 error_code=None,
                 error_message=(
-                    "已连接只读 Docker API，可读取容器清单；"
-                    f"API 版本 {details.get('api_version') or '未知'}"
+                    "Connected to the read-only Docker API; container inventory is available; "
+                    f"API version {details.get('api_version') or 'unknown'}"
                 ),
                 details=details,
             )
@@ -199,22 +199,22 @@ class DockerAdapter(Adapter):
 
         health = HEALTH_UNKNOWN
         error_code = "monitor_disabled"
-        error_message = "已探测到 Docker；容器监控未启用（默认不向 Web 进程挂载 Docker Socket）"
+        error_message = "Docker detected; container monitoring is disabled (the Docker socket is not mounted into the web process by default)"
         service_status = SERVICE_UNKNOWN
         if self.config.enabled and api_error:
             service_status = SERVICE_UNKNOWN
             if api_error.code == "permission_denied":
                 health = HEALTH_PERMISSION_DENIED
                 error_code = "permission_denied"
-                error_message = "容器监控无权访问 Docker API；不会误报为已启用"
+                error_message = "Container monitoring cannot access the Docker API; it is not falsely reported as enabled"
             elif api_error.code in {"unavailable", "timeout"}:
                 health = HEALTH_DEGRADED
                 error_code = "api_unreachable"
-                error_message = "容器监控已启用，但无法连接只读 Docker API 代理"
+                error_message = "Container monitoring is enabled but cannot reach the read-only Docker API proxy"
             else:
                 health = HEALTH_DEGRADED
                 error_code = "api_error"
-                error_message = f"只读 Docker API 异常: {api_error.message}"[:500]
+                error_message = f"read-only Docker API error: {api_error.message}"[:500]
         elif binary:
             info = run([binary, "info", "--format", "{{.ServerVersion}}"], timeout=6)
             if info.ok:
@@ -222,17 +222,17 @@ class DockerAdapter(Adapter):
                 details["server_version"] = info.stdout.strip()[:100]
                 health = HEALTH_UNKNOWN
                 error_code = "monitor_disabled"
-                error_message = "Docker 守护进程可访问，但容器监控未启用"
+                error_message = "Docker daemon is reachable but container monitoring is disabled"
             else:
                 service_status = SERVICE_STOPPED
                 if "permission denied" in info.tail().lower():
                     health = HEALTH_PERMISSION_DENIED
                     error_code = "permission_denied"
-                    error_message = "无权访问 Docker Socket（当前进程未被授权）"
+                    error_message = "Permission denied accessing the Docker socket (the current process is not authorized)"
                 else:
                     health = HEALTH_DEGRADED
                     error_code = "daemon_unreachable"
-                    error_message = "Docker 客户端存在，但无法连接容器运行时"
+                    error_message = "Docker client exists but cannot reach the container runtime"
         return ProbeResult(
             component_id=self.component_id,
             display_name=self.display_name,
@@ -249,7 +249,7 @@ class DockerAdapter(Adapter):
 
 class ContainerdAdapter(Adapter):
     component_id = "containerd"
-    display_name = "Containerd 容器运行时"
+    display_name = "Containerd Container Runtime"
 
     SOCKETS = (
         "/run/containerd/containerd.sock",
@@ -278,7 +278,7 @@ class ContainerdAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message="未检测到 Containerd",
+                error_message="Containerd not detected",
                 details=details,
             )
         return ProbeResult(
@@ -289,8 +289,8 @@ class ContainerdAdapter(Adapter):
             health_status=HEALTH_UNKNOWN,
             error_code="inventory_not_supported",
             error_message=(
-                "已探测到 Containerd；本阶段容器清单仅通过 Docker Engine API 采集，"
-                "未接入 Containerd 清单，不会伪造结果"
+                "Containerd detected; at this stage container inventory is collected only through the Docker Engine API, "
+                "Containerd inventory is not integrated, and results are not fabricated"
             ),
             details=details,
         )

@@ -66,14 +66,14 @@ def create_task(
     actor: str,
 ) -> dict[str, Any]:
     if task_type not in TASK_TYPES:
-        raise invalid("无效的任务类型")
+        raise invalid("invalid task type")
     if task_type not in SUPPORTED_TASK_TYPES:
         raise invalid(
-            f"任务类型 {task_type} 尚未在当前阶段实现",
+            f"task type {task_type} is not implemented at this stage",
             {"supported": list(SUPPORTED_TASK_TYPES)},
         )
     if not targets:
-        raise invalid("扫描目标不能为空")
+        raise invalid("scan targets must not be empty")
     task_id = new_id()
     now = now_iso()
     with db.write() as conn:
@@ -96,7 +96,7 @@ def create_task(
 def get_task(db: Database, task_id: str) -> dict[str, Any]:
     row = db.query_one(f"SELECT {_COLUMNS} FROM scan_tasks WHERE task_id = ?", (task_id,))
     if not row:
-        raise not_found("任务不存在")
+        raise not_found("task not found")
     return _row_to_task(row)
 
 
@@ -113,7 +113,7 @@ def list_tasks(
     params: list[Any] = []
     if status:
         if status not in STATUSES:
-            raise invalid("无效的任务状态")
+            raise invalid("invalid task status")
         where = "WHERE status = ?"
         params.append(status)
     total = db.query_one(f"SELECT COUNT(*) AS n FROM scan_tasks {where}", params)
@@ -193,14 +193,14 @@ def cancel_requested(db: Database, task_id: str) -> bool:
         "SELECT cancel_requested FROM scan_tasks WHERE task_id = ?", (task_id,)
     )
     if not row:
-        raise not_found("任务不存在")
+        raise not_found("task not found")
     return bool(row["cancel_requested"])
 
 
 def request_cancel(db: Database, task_id: str) -> dict[str, Any]:
     task = get_task(db, task_id)
     if task["status"] in TERMINAL:
-        raise conflict("任务已结束，无法取消", {"status": task["status"]})
+        raise conflict("task has already finished and cannot be cancelled", {"status": task["status"]})
     with db.write() as conn:
         conn.execute(
             "UPDATE scan_tasks SET cancel_requested = 1 WHERE task_id = ?",
@@ -272,7 +272,7 @@ def recover_interrupted(db: Database) -> int:
                 (
                     now,
                     json.dumps(
-                        [{"error": "守护进程重启，任务中断且未自动恢复"}],
+                        [{"error": "daemon restarted; task interrupted and not recovered automatically"}],
                         ensure_ascii=False,
                     ),
                     json.dumps({"interrupted": True}, ensure_ascii=False),

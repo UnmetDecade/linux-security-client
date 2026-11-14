@@ -6,8 +6,8 @@ case "$1" in
     if [ -d /run/systemd/system ]; then
       systemctl daemon-reload >/dev/null 2>&1 || true
     fi
-    echo "lsec: 已保留 /var/lib/lsec（含隔离区、证据与审计）与 /var/log/lsec。" >&2
-    echo "lsec: 如需彻底删除请执行 'apt purge lsec'。" >&2
+    echo "lsec: kept /var/lib/lsec (quarantine, evidence and audits) and /var/log/lsec." >&2
+    echo "lsec: run 'apt purge lsec' to remove them completely." >&2
     ;;
   purge)
     rm -rf /var/lib/lsec /var/log/lsec /run/lsec

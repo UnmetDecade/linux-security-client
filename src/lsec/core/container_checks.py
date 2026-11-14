@@ -56,18 +56,18 @@ _BROAD_CAPS = {
 }
 
 _RECOMMENDATIONS = {
-    "privileged": "移除 privileged 模式；仅按需授予具体 capability。",
-    "host-network": "改用 bridge 网络或显式端口映射，避免共享宿主网络命名空间。",
-    "host-pid": "移除 host PID 命名空间；改为在容器内观察进程。",
-    "host-ipc": "移除 host IPC 命名空间，除非确有明确的进程间通信需求。",
-    "host-user": "避免 host 用户命名空间；为容器启用独立用户命名空间。",
-    "docker-socket": "不要在业务容器挂载 Docker Socket；如确需只读查询，使用受控的 GET-only 代理。",
-    "sensitive-mount": "移除不必要的宿主目录挂载；改为只挂载最小必要路径并优先只读。",
-    "cap-add": "移除多余 capability，使用 cap_drop: [ALL] 后按需添加。",
-    "seccomp-unconfined": "启用默认 seccomp 配置，不要设置为 unconfined。",
-    "apparmor-unconfined": "启用 AppArmor 默认配置，不要设置为 unconfined。",
-    "selinux-disabled": "启用 SELinux 标签隔离（label=disable 会关闭隔离）。",
-    "host-device": "不要在容器中直通宿主设备，除非属于明确的硬件访问场景。",
+    "privileged": "Remove privileged mode; grant only the specific capabilities needed.",
+    "host-network": "Use a bridge network or explicit port mappings instead of sharing the host network namespace.",
+    "host-pid": "Remove the host PID namespace; observe processes from inside the container instead.",
+    "host-ipc": "Remove the host IPC namespace unless there is a clear inter-process communication requirement.",
+    "host-user": "Avoid the host user namespace; enable a dedicated user namespace for the container.",
+    "docker-socket": "Do not mount the Docker Socket into workload containers; if read-only queries are truly needed, use a controlled GET-only proxy.",
+    "sensitive-mount": "Remove unnecessary host directory mounts; mount only the minimum required paths and prefer read-only.",
+    "cap-add": "Remove unnecessary capabilities; use cap_drop: [ALL] and add only what is needed.",
+    "seccomp-unconfined": "Enable the default seccomp profile; do not set it to unconfined.",
+    "apparmor-unconfined": "Enable the default AppArmor profile; do not set it to unconfined.",
+    "selinux-disabled": "Enable SELinux label isolation (label=disable turns isolation off).",
+    "host-device": "Do not pass host devices through to containers unless it is a clear hardware-access use case.",
 }
 
 
@@ -228,7 +228,7 @@ def _add_finding(
             "title": title[:300],
             "severity": severity,
             "description": description[:2000],
-            "recommendation": _RECOMMENDATIONS.get(rule_id, "核实配置并按最小权限原则调整。"),
+            "recommendation": _RECOMMENDATIONS.get(rule_id, "Verify the configuration and adjust it according to least privilege."),
             "evidence": evidence,
         }
     )
@@ -310,7 +310,7 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             if not isinstance(value, dict)
         ]
         result["evaluation_error"] = (
-            "Docker 详情缺少字段: " + ", ".join(missing) + "；无法给出风险结论"
+            "Docker details are missing fields: " + ", ".join(missing) + "; cannot produce a risk conclusion"
         )
         return result
 
@@ -319,9 +319,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-PRIVILEGED",
             rule_id="privileged",
-            title=f"容器以特权模式运行: {result['name']}",
+            title=f"Container runs in privileged mode: {result['name']}",
             severity="critical",
-            description="privileged 容器拥有宿主机的全部能力并关闭默认隔离，取得容器控制权几乎等同宿主机 root。",
+            description="A privileged container has all host capabilities and default isolation disabled; gaining control of the container is almost equivalent to host root.",
             evidence={"privileged": True},
         )
 
@@ -330,9 +330,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-HOST-NETWORK",
             rule_id="host-network",
-            title=f"容器共享宿主网络: {result['name']}",
+            title=f"Container shares the host network: {result['name']}",
             severity="high",
-            description="host 网络模式让容器直接使用宿主网络命名空间，可绕过端口隔离并访问宿主网络服务。",
+            description="Host network mode makes the container use the host network namespace directly, bypassing port isolation and allowing access to host network services.",
             evidence={"network_mode": result["network_mode"]},
         )
     if result["pid_mode"] == "host":
@@ -340,9 +340,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-HOST-PID",
             rule_id="host-pid",
-            title=f"容器共享宿主 PID 命名空间: {result['name']}",
+            title=f"Container shares the host PID namespace: {result['name']}",
             severity="high",
-            description="host PID 模式允许容器查看甚至影响宿主进程（取决于 capability）。",
+            description="Host PID mode lets the container see and even affect host processes (depending on capabilities).",
             evidence={"pid_mode": result["pid_mode"]},
         )
     if result["ipc_mode"] == "host":
@@ -350,9 +350,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-HOST-IPC",
             rule_id="host-ipc",
-            title=f"容器共享宿主 IPC 命名空间: {result['name']}",
+            title=f"Container shares the host IPC namespace: {result['name']}",
             severity="medium",
-            description="host IPC 模式允许容器访问宿主进程间通信资源。",
+            description="Host IPC mode lets the container access host inter-process communication resources.",
             evidence={"ipc_mode": result["ipc_mode"]},
         )
     if result["userns_mode"] == "host":
@@ -360,9 +360,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-HOST-USERNS",
             rule_id="host-user",
-            title=f"容器共享宿主用户命名空间: {result['name']}",
+            title=f"Container shares the host user namespace: {result['name']}",
             severity="medium",
-            description="host 用户命名空间会削弱容器内的 UID 隔离。",
+            description="The host user namespace weakens UID isolation inside the container.",
             evidence={"userns_mode": result["userns_mode"]},
         )
 
@@ -374,9 +374,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
                 findings,
                 key=f"CONTAINER-DOCKER-SOCKET:{source}:{destination}",
                 rule_id="docker-socket",
-                title=f"容器挂载了容器运行时 Socket: {result['name']}",
+                title=f"Container mounts the container runtime socket: {result['name']}",
                 severity="critical",
-                description="挂载 docker.sock/containerd.sock 让容器可直接控制宿主容器运行时；即使只读挂载，Socket 读写语义仍不受文件挂载选项限制。",
+                description="Mounting docker.sock/containerd.sock lets the container control the host container runtime directly; even with a read-only mount, socket read/write semantics are not restricted by file mount options.",
                 evidence={
                     "source": source,
                     "destination": destination,
@@ -394,9 +394,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key=f"CONTAINER-SENSITIVE-MOUNT:{source}:{destination}",
             rule_id="sensitive-mount",
-            title=f"容器挂载敏感宿主目录: {source}",
+            title=f"Container mounts a sensitive host directory: {source}",
             severity=severity,
-            description=f"容器将宿主路径 {source} 挂载到 {destination}（{'读写' if not mount['read_only'] else '只读'}），可能暴露或允许修改宿主数据。",
+            description=f"Container mounts host path {source} at {destination} ({'read-write' if not mount['read_only'] else 'read-only'}), which may expose or allow modification of host data.",
             evidence={
                 "source": source,
                 "destination": destination,
@@ -413,9 +413,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-BROAD-CAPABILITIES",
             rule_id="cap-add",
-            title=f"容器添加了过宽 capabilities: {result['name']}",
+            title=f"Container adds overly broad capabilities: {result['name']}",
             severity=severity,
-            description="显式添加的 capability 扩大了容器可执行的特权操作范围。",
+            description="Explicitly added capabilities expand the range of privileged operations the container can perform.",
             evidence={"cap_add": risky_caps[:MAX_CAPS]},
         )
 
@@ -425,9 +425,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-SECCOMP-UNCONFINED",
             rule_id="seccomp-unconfined",
-            title=f"容器禁用了 seccomp: {result['name']}",
+            title=f"Container disables seccomp: {result['name']}",
             severity="high",
-            description="seccomp=unconfined 关闭系统调用过滤，显著扩大内核攻击面。",
+            description="seccomp=unconfined disables system call filtering and significantly expands the kernel attack surface.",
             evidence={"security_opt": result["security_opt"]},
         )
     if any(opt in {"apparmor=unconfined", "apparmor:unconfined"} for opt in security_opts) and not result["privileged"]:
@@ -435,9 +435,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-APPARMOR-UNCONFINED",
             rule_id="apparmor-unconfined",
-            title=f"容器禁用了 AppArmor: {result['name']}",
+            title=f"Container disables AppArmor: {result['name']}",
             severity="medium",
-            description="apparmor=unconfined 关闭强制访问控制配置。",
+            description="apparmor=unconfined disables the mandatory access control profile.",
             evidence={"security_opt": result["security_opt"]},
         )
     if any(opt in {"label=disable", "label:disable"} for opt in security_opts):
@@ -445,9 +445,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-SELINUX-DISABLED",
             rule_id="selinux-disabled",
-            title=f"容器禁用了 SELinux 标签: {result['name']}",
+            title=f"Container disables SELinux labels: {result['name']}",
             severity="medium",
-            description="label=disable 关闭 SELinux 标签隔离，使容器可绕过宿主策略。",
+            description="label=disable turns off SELinux label isolation, letting the container bypass host policy.",
             evidence={"security_opt": result["security_opt"]},
         )
 
@@ -456,9 +456,9 @@ def evaluate_container(inspect: dict[str, Any], list_item: dict[str, Any] | None
             findings,
             key="CONTAINER-HOST-DEVICES",
             rule_id="host-device",
-            title=f"容器直通了宿主设备: {result['name']}",
+            title=f"Container passes through host devices: {result['name']}",
             severity="high",
-            description="直通宿主设备可能允许容器直接访问磁盘、GPU 或其他硬件。",
+            description="Passing through host devices may allow the container to access disks, GPUs or other hardware directly.",
             evidence={"devices": result["devices"][:20]},
         )
 

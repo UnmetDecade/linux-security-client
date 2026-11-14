@@ -56,7 +56,7 @@ class DockerApiClient:
         if api_url.startswith("unix://"):
             path = api_url[len("unix://"):]
             if not path.startswith("/"):
-                raise DockerApiError("invalid_config", "Unix Socket 路径必须是绝对路径")
+                raise DockerApiError("invalid_config", "Unix socket path must be absolute")
             return "unix", path
         if api_url.startswith("http://"):
             parsed = urlsplit(api_url)
@@ -68,9 +68,9 @@ class DockerApiClient:
                 or parsed.fragment
                 or parsed.path not in {"", "/"}
             ):
-                raise DockerApiError("invalid_config", "Docker API 地址不合法")
+                raise DockerApiError("invalid_config", "invalid Docker API address")
             return "tcp", (parsed.hostname, parsed.port or 80)
-        raise DockerApiError("invalid_config", "只支持 unix:// 或 http:// Docker API")
+        raise DockerApiError("invalid_config", "only unix:// or http:// Docker API URLs are supported")
 
     def _connection(self) -> http.client.HTTPConnection:
         if self._mode == "unix":
@@ -90,59 +90,59 @@ class DockerApiClient:
                 response = connection.getresponse()
                 raw = response.read(MAX_RESPONSE_BYTES + 1)
             except FileNotFoundError:
-                raise DockerApiError("unavailable", "Docker API Socket 不存在") from None
+                raise DockerApiError("unavailable", "Docker API socket does not exist") from None
             except PermissionError:
-                raise DockerApiError("permission_denied", "无权访问 Docker API Socket") from None
+                raise DockerApiError("permission_denied", "permission denied accessing the Docker API socket") from None
             except (socket.timeout, TimeoutError):
-                raise DockerApiError("timeout", "Docker API 请求超时") from None
+                raise DockerApiError("timeout", "Docker API request timed out") from None
             except ConnectionRefusedError:
-                raise DockerApiError("unavailable", "Docker API 拒绝连接") from None
+                raise DockerApiError("unavailable", "Docker API connection refused") from None
             except OSError as exc:
                 message = str(exc)
                 if "permission denied" in message.lower():
-                    raise DockerApiError("permission_denied", "无权访问 Docker API") from None
-                raise DockerApiError("unavailable", f"无法连接 Docker API: {message[:200]}") from None
+                    raise DockerApiError("permission_denied", "permission denied accessing the Docker API") from None
+                raise DockerApiError("unavailable", f"cannot connect to Docker API: {message[:200]}") from None
         finally:
             connection.close()
 
         if len(raw) > MAX_RESPONSE_BYTES:
-            raise DockerApiError("protocol_error", "Docker API 响应过大")
+            raise DockerApiError("protocol_error", "Docker API response too large")
         if response.status in {401, 403}:
-            raise DockerApiError("permission_denied", "Docker API 拒绝访问（权限不足）")
+            raise DockerApiError("permission_denied", "Docker API access denied (insufficient privileges)")
         if response.status == 404:
-            raise DockerApiError("not_found", "Docker API 资源不存在")
+            raise DockerApiError("not_found", "Docker API resource not found")
         if response.status >= 400:
             detail = raw.decode("utf-8", errors="replace")[:300]
             raise DockerApiError(
-                "protocol_error", f"Docker API 返回 HTTP {response.status}: {detail}"
+                "protocol_error", f"Docker API returned HTTP {response.status}: {detail}"
             )
         try:
             return json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            raise DockerApiError("protocol_error", "Docker API 返回了非 JSON 数据") from None
+            raise DockerApiError("protocol_error", "Docker API returned non-JSON data") from None
 
     def version(self) -> dict[str, Any]:
         data = self._get("/version")
         if not isinstance(data, dict):
-            raise DockerApiError("protocol_error", "Docker /version 响应格式错误")
+            raise DockerApiError("protocol_error", "invalid Docker /version response format")
         return data
 
     def info(self) -> dict[str, Any]:
         data = self._get("/info")
         if not isinstance(data, dict):
-            raise DockerApiError("protocol_error", "Docker /info 响应格式错误")
+            raise DockerApiError("protocol_error", "invalid Docker /info response format")
         return data
 
     def list_containers(self) -> list[dict[str, Any]]:
         data = self._get("/containers/json?all=1")
         if not isinstance(data, list):
-            raise DockerApiError("protocol_error", "Docker 容器列表格式错误")
+            raise DockerApiError("protocol_error", "invalid Docker container list format")
         return [item for item in data if isinstance(item, dict)]
 
     def inspect_container(self, container_id: str) -> dict[str, Any]:
         if not CONTAINER_ID_RE.match(container_id):
-            raise DockerApiError("invalid_argument", "容器 ID 格式错误")
+            raise DockerApiError("invalid_argument", "invalid container ID format")
         data = self._get(f"/containers/{container_id}/json")
         if not isinstance(data, dict):
-            raise DockerApiError("protocol_error", "Docker 容器详情格式错误")
+            raise DockerApiError("protocol_error", "invalid Docker container details format")
         return data

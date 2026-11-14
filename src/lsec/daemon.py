@@ -70,12 +70,12 @@ class SingleInstanceLock:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="lsec-daemon", description="Linux 统一安全防护客户端守护进程")
-    parser.add_argument("--config", default=os.environ.get("LSEC_CONFIG"), help="TOML 配置文件路径")
-    parser.add_argument("--data-dir", help="数据目录（覆盖配置）")
-    parser.add_argument("--bind", help="监听地址（覆盖配置）")
-    parser.add_argument("--port", type=int, help="监听端口（覆盖配置）")
-    parser.add_argument("--log-level", help="日志级别")
+    parser = argparse.ArgumentParser(prog="lsec-daemon", description="Linux unified security client daemon")
+    parser.add_argument("--config", default=os.environ.get("LSEC_CONFIG"), help="path to the TOML configuration file")
+    parser.add_argument("--data-dir", help="data directory (overrides the configuration)")
+    parser.add_argument("--bind", help="listen address (overrides the configuration)")
+    parser.add_argument("--port", type=int, help="listen port (overrides the configuration)")
+    parser.add_argument("--log-level", help="log level")
     parser.add_argument("--version", action="version", version=f"lsec {__version__}")
     return parser.parse_args(argv)
 
@@ -208,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             log_level=args.log_level,
         )
     except ConfigError as exc:
-        print(f"配置错误: {exc}", file=sys.stderr)
+        print(f"configuration error: {exc}", file=sys.stderr)
         return 2
 
     if (
@@ -217,8 +217,8 @@ def main(argv: list[str] | None = None) -> int:
         and not config.server.allow_insecure_remote
     ):
         print(
-            "拒绝启动：监听非回环地址但未启用 TLS。"
-            "请配置 server.tls_cert/tls_key，或设置 LSEC_ALLOW_INSECURE_REMOTE=1（不推荐）。",
+            "refusing to start: bound to a non-loopback address but TLS is not enabled. "
+            "Configure server.tls_cert/tls_key, or set LSEC_ALLOW_INSECURE_REMOTE=1 (not recommended).",
             file=sys.stderr,
         )
         return 2
@@ -233,14 +233,14 @@ def main(argv: list[str] | None = None) -> int:
 
     lock = SingleInstanceLock(config.data_dir / "daemon.lock")
     if not lock.acquire():
-        print("已有 lsec 守护进程在运行（daemon.lock 被占用）", file=sys.stderr)
+        print("another lsec daemon is already running (daemon.lock is held)", file=sys.stderr)
         return 3
 
     try:
         app, services = build_app(config)
     except Exception as exc:
-        log.exception("初始化失败")
-        print(f"初始化失败: {exc}", file=sys.stderr)
+        log.exception("initialization failed")
+        print(f"initialization failed: {exc}", file=sys.stderr)
         lock.release()
         return 1
 
@@ -248,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         components.probe_all()
     except Exception:
-        log.exception("启动时组件探测失败")
+        log.exception("component probe failed at startup")
 
     scans: ScanManager = services["scans"]
     audits: AuditService = services["audits"]
@@ -270,9 +270,9 @@ def main(argv: list[str] | None = None) -> int:
             return
         try:
             clamav.start()
-            log.info("ClamAV 已按配置自动启动")
+            log.info("ClamAV started automatically per configuration")
         except Exception as exc:
-            log.warning("ClamAV 自动启动失败: %s", exc)
+            log.warning("ClamAV automatic start failed: %s", exc)
         try:
             components.probe("clamav")
         except Exception:
@@ -283,20 +283,20 @@ def main(argv: list[str] | None = None) -> int:
     server = create_server(app)
     scheme = "https" if config.server.tls_cert else "http"
     log.info(
-        "lsec 守护进程启动 version=%s bind=%s port=%s data_dir=%s",
+        "lsec daemon started version=%s bind=%s port=%s data_dir=%s",
         __version__,
         config.server.bind,
         config.server.port,
         config.data_dir,
     )
-    log.info("Web 管理界面: %s://%s:%s/", scheme, config.server.bind, config.server.port)
+    log.info("Web management UI: %s://%s:%s/", scheme, config.server.bind, config.server.port)
     log.info(
-        "访问令牌文件: %s（请勿通过聊天或日志传播令牌）",
+        "access token files: %s (do not share tokens through chat or logs)",
         config.secrets_dir,
     )
 
     def _handle_signal(signum: int, _frame: object) -> None:
-        log.info("收到信号 %s，准备停止", signum)
+        log.info("received signal %s; preparing to stop", signum)
         threading.Thread(target=server.shutdown, name="shutdown", daemon=True).start()
 
     signal.signal(signal.SIGTERM, _handle_signal)
@@ -305,9 +305,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         server.serve_forever(poll_interval=0.5)
     except Exception:
-        log.exception("HTTP 服务异常退出")
+        log.exception("HTTP server exited unexpectedly")
     finally:
-        log.info("正在停止后台服务")
+        log.info("stopping background services")
         scans.stop()
         audits.stop()
         containers.stop()
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         wazuh_ingest.stop()
         server.server_close()
         lock.release()
-        log.info("守护进程已停止")
+        log.info("daemon stopped")
     return 0
 
 

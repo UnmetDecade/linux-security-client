@@ -49,7 +49,7 @@ class QuarantineService:
         try:
             audit_store.record(self.db, **kwargs)
         except Exception:  # pragma: no cover - audit must not mask the main result
-            log.exception("写入审计记录失败")
+            log.exception("failed to write audit record")
 
     def quarantine(
         self,
@@ -64,17 +64,17 @@ class QuarantineService:
         detection_name: str | None = None,
     ) -> dict[str, Any]:
         if not confirmed:
-            raise invalid("隔离操作需要明确确认")
+            raise invalid("quarantine requires explicit confirmation")
         validate_path_text(path)
         st = require_regular_file(path)
         real_path = os.path.realpath(path)
         ensure_within_roots(
-            real_path, self.config.response.quarantine_roots, field="隔离路径"
+            real_path, self.config.response.quarantine_roots, field="quarantine path"
         )
         size = st.st_size
         used = quarantine_store.total_size(self.db)
         if used + size > self.config.storage.quarantine_max_mb * 1024 * 1024:
-            raise conflict("隔离区容量已达上限，请先清理")
+            raise conflict("quarantine capacity limit reached; clean up first")
 
         item_id = new_id()
         stored_name = f"{item_id}.bin"
@@ -84,7 +84,7 @@ class QuarantineService:
             source_fd = os.open(real_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
             fst = os.fstat(source_fd)
             if not stat.S_ISREG(fst.st_mode):
-                raise invalid("隔离源不是普通文件")
+                raise invalid("the quarantine source is not a regular file")
             sha256 = _hash_fd(source_fd)
             dest_fd = os.open(
                 stored_path,
@@ -108,12 +108,12 @@ class QuarantineService:
             finally:
                 os.close(verify_fd)
             if stored_hash != sha256:
-                raise conflict("隔离文件校验失败，原文件未移动")
+                raise conflict("quarantine file verification failed; the original file was not moved")
 
             # Ensure the path still points at the file we hashed before unlinking.
             current = os.lstat(real_path)
             if (current.st_dev, current.st_ino) != (fst.st_dev, fst.st_ino):
-                raise conflict("文件在隔离过程中被替换，操作已中止")
+                raise conflict("the file was replaced during quarantine; the operation was aborted")
             os.unlink(real_path)
         except BaseException:
             try:
@@ -155,7 +155,7 @@ class QuarantineService:
             confirmed=True,
             result="success",
         )
-        log.info("文件已隔离 item=%s path=%s", item_id, real_path)
+        log.info("file quarantined item=%s path=%s", item_id, real_path)
         return item
 
     def restore(
@@ -168,15 +168,15 @@ class QuarantineService:
         confirmed: bool,
     ) -> dict[str, Any]:
         if not confirmed:
-            raise invalid("恢复操作需要明确确认")
+            raise invalid("restore requires explicit confirmation")
         item = quarantine_store.get_item(self.db, item_id)
         if item["status"] != "quarantined":
-            raise conflict(f"隔离项状态为 {item['status']}，无法恢复")
+            raise conflict(f"quarantine item status is {item['status']} and cannot be restored")
         stored_path = self.root / item["stored_name"]
         try:
-            st = require_regular_file(str(stored_path), field="隔离存储文件")
+            st = require_regular_file(str(stored_path), field="quarantine stored file")
         except Exception:
-            quarantine_store.mark_missing(self.db, item_id, "隔离存储文件缺失")
+            quarantine_store.mark_missing(self.db, item_id, "quarantine stored file is missing")
             self._audit(
                 action="quarantine.restore",
                 actor=actor,
@@ -184,26 +184,26 @@ class QuarantineService:
                 request_id=request_id,
                 target=item["original_path"],
                 result="failure",
-                error="隔离存储文件缺失",
+                error="quarantine stored file is missing",
                 confirmed=True,
             )
-            raise conflict("隔离存储文件缺失，无法恢复") from None
+            raise conflict("quarantine stored file is missing; cannot restore") from None
         original = item["original_path"]
         validate_path_text(original)
         ensure_within_roots(
-            original, self.config.response.quarantine_roots, field="恢复路径"
+            original, self.config.response.quarantine_roots, field="restore path"
         )
         parent = os.path.dirname(original) or "/"
         if not os.path.isdir(parent):
-            raise invalid(f"原始目录不存在: {parent}")
+            raise invalid(f"original directory does not exist: {parent}")
         if os.path.lexists(original):
-            raise conflict("原始路径已被占用，拒绝覆盖现有文件")
+            raise conflict("original path is already occupied; refusing to overwrite the existing file")
 
         src_fd = os.open(str(stored_path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         try:
             src_hash = _hash_fd(src_fd)
             if src_hash != item["sha256"]:
-                raise conflict("隔离文件哈希不匹配，拒绝恢复")
+                raise conflict("quarantine file hash mismatch; refusing to restore")
             dst_fd = os.open(
                 original,
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
@@ -226,7 +226,7 @@ class QuarantineService:
                 os.close(verify_fd)
             if restored_hash != item["sha256"]:
                 os.unlink(original)
-                raise conflict("恢复后哈希校验失败，已删除目标文件")
+                raise conflict("hash verification failed after restore; the target file was deleted")
             os.unlink(stored_path)
         finally:
             os.close(src_fd)
@@ -243,7 +243,7 @@ class QuarantineService:
             confirmed=True,
             result="success",
         )
-        log.info("隔离文件已恢复 item=%s path=%s", item_id, original)
+        log.info("quarantine file restored item=%s path=%s", item_id, original)
         return updated
 
     def delete(
@@ -256,13 +256,13 @@ class QuarantineService:
         confirmed: bool,
     ) -> dict[str, Any]:
         if not confirmed:
-            raise invalid("删除隔离文件需要明确确认")
+            raise invalid("deleting a quarantined file requires explicit confirmation")
         item = quarantine_store.get_item(self.db, item_id)
         if item["status"] != "quarantined":
-            raise conflict(f"隔离项状态为 {item['status']}，无法删除")
+            raise conflict(f"quarantine item status is {item['status']} and cannot be deleted")
         stored_path = self.root / item["stored_name"]
         if not stored_path.exists():
-            quarantine_store.mark_missing(self.db, item_id, "隔离存储文件缺失")
+            quarantine_store.mark_missing(self.db, item_id, "quarantine stored file is missing")
             self._audit(
                 action="quarantine.delete",
                 actor=actor,
@@ -270,10 +270,10 @@ class QuarantineService:
                 request_id=request_id,
                 target=item["original_path"],
                 result="failure",
-                error="隔离存储文件缺失",
+                error="quarantine stored file is missing",
                 confirmed=True,
             )
-            raise conflict("隔离存储文件缺失，无法删除")
+            raise conflict("quarantine stored file is missing; cannot delete")
         os.unlink(stored_path)
         updated = quarantine_store.mark_deleted(self.db, item_id)
         self._audit(
@@ -287,7 +287,7 @@ class QuarantineService:
             confirmed=True,
             result="success",
         )
-        log.info("隔离文件已删除 item=%s", item_id)
+        log.info("quarantine file deleted item=%s", item_id)
         return updated
 
     def get(self, item_id: str) -> dict[str, Any]:

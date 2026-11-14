@@ -45,7 +45,7 @@ class EvidenceStore:
                 {
                     "generated_at": now_iso(),
                     "truncated": True,
-                    "note": "体检报告超过 1MB，已截断；请查看原始 Lynis 报告与数据库摘要",
+                    "note": "the audit report exceeds 1MB and was truncated; see the raw Lynis report and database summary",
                     "audit_id": audit_id,
                 },
                 ensure_ascii=False,
@@ -73,7 +73,7 @@ class EvidenceStore:
                 {
                     "generated_at": now_iso(),
                     "truncated": True,
-                    "note": "报告超过 1MB，已截断",
+                    "note": "the report exceeds 1MB and was truncated",
                     "task_id": task_id,
                 },
                 ensure_ascii=False,
@@ -131,5 +131,5 @@ class EvidenceStore:
                 if total <= self.max_bytes:
                     break
         if removed:
-            log.info("证据库清理完成，删除 %s 个文件", removed)
+            log.info("evidence store cleanup complete; removed %s files", removed)
         return removed

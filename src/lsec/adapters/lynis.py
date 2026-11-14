@@ -187,7 +187,7 @@ def warning_severity(test_id: str, text: str) -> str:
 
 class LynisAdapter(Adapter):
     component_id = "lynis"
-    display_name = "Lynis 系统安全审计"
+    display_name = "Lynis Host Security Audit"
 
     def __init__(self, binary: str = "lynis", *, enabled: bool = True) -> None:
         self.binary = binary
@@ -215,7 +215,7 @@ class LynisAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="disabled",
-                error_message="Lynis 集成已在配置中禁用；仅运行内置只读检查",
+                error_message="Lynis integration is disabled in configuration; only built-in read-only checks run",
                 details={"binary": None, "integration": "disabled"},
             )
         path = self._binary()
@@ -227,7 +227,7 @@ class LynisAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message="未检测到 lynis；主机体检仍会运行内置检查",
+                error_message="lynis not detected; host audits will still run built-in checks",
                 details={"binary": None, "integration": "builtin_only"},
             )
         version = self._version(path)
@@ -240,7 +240,7 @@ class LynisAdapter(Adapter):
             health_status=HEALTH_OK if version else HEALTH_DEGRADED,
             capabilities=["host_audit"],
             error_code=None if version else "version_unknown",
-            error_message=None if version else "lynis 已安装，但无法读取版本",
+            error_message=None if version else "lynis is installed but its version could not be read",
             details={
                 "binary": path,
                 "integration": "read_only_audit",
@@ -252,20 +252,20 @@ class LynisAdapter(Adapter):
         return {
             "component_id": self.component_id,
             "installable_from_ui": False,
-            "source": "发行版软件包，例如 Debian/Ubuntu 的 lynis 包",
+            "source": "distribution package, e.g. the lynis package on Debian/Ubuntu",
             "requires_root": True,
-            "note": "不会在运行期自动安装或执行远程脚本；请在镜像或主机上通过受控包管理器安装",
+            "note": "Does not install automatically or run remote scripts at runtime; install it in the image or on the host through a controlled package manager",
         }
 
     def run_audit(self, workdir: Path, timeout: int) -> LynisOutcome:
         if not self.enabled:
             return LynisOutcome(
-                available=False, enabled=False, error="Lynis 集成已在配置中禁用"
+                available=False, enabled=False, error="Lynis integration is disabled in configuration"
             )
         binary = self._binary()
         if not binary:
             return LynisOutcome(
-                available=False, enabled=True, error=f"未检测到 {self.binary}"
+                available=False, enabled=True, error=f"{self.binary} not detected"
             )
         workdir.mkdir(parents=True, exist_ok=True)
         try:
@@ -305,9 +305,9 @@ class LynisAdapter(Adapter):
                         "utf-8", errors="replace"
                     )
                 if size > MAX_REPORT_BYTES:
-                    report_text += "\n...[报告已截断]"
+                    report_text += "\n...[report truncated]"
             except OSError as exc:
-                log.warning("读取 Lynis 报告失败: %s", exc)
+                log.warning("failed to read Lynis report: %s", exc)
         parsed = parse_report(report_text)
         outcome = LynisOutcome(
             available=True,
@@ -325,9 +325,9 @@ class LynisAdapter(Adapter):
             report_text=report_text,
         )
         if result.timed_out:
-            outcome.error = f"Lynis 执行超时（{timeout} 秒），结果可能不完整"
+            outcome.error = f"Lynis timed out after {timeout} seconds; results may be incomplete"
         elif not report_text:
-            outcome.error = f"Lynis 未生成报告: {result.tail(300) or '无输出'}"
+            outcome.error = f"Lynis produced no report: {result.tail(300) or 'no output'}"
         elif result.returncode not in (0, None):
-            outcome.error = f"Lynis 退出码 {result.returncode}: {result.tail(300)}"
+            outcome.error = f"Lynis exit code {result.returncode}: {result.tail(300)}"
         return outcome

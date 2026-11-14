@@ -5,7 +5,7 @@
 lsec 是一个本地优先的 Linux 主机安全客户端：单实例守护进程统一管理 ClamAV、YARA、Lynis、Falco 与可选的本机 Wazuh Agent 接入，提供 Web 管理界面和 CLI。所有状态、扫描结果与风险结论都来自本机真实探测和真实任务执行。
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="lsec Web 安全概览" width="900">
+  <img src="docs/images/zh-CN/dashboard.png" alt="lsec Web 安全概览" width="900">
 </p>
 
 > 截图来自测试部署，其中包含专门用于验证容器风险检查的高危容器，因此总状态如实显示“存在风险”。lsec 不会把未安装、未启用或无法验证的能力显示为“已防护”。
@@ -38,7 +38,7 @@ lsec 是一个本地优先的 Linux 主机安全客户端：单实例守护进�
 
 | YARA 规则检测 | 组件状态 |
 | --- | --- |
-| <img src="docs/images/yara.png" alt="YARA 规则检测页面"> | <img src="docs/images/components.png" alt="组件管理页面"> |
+| <img src="docs/images/zh-CN/yara.png" alt="YARA 规则检测页面"> | <img src="docs/images/zh-CN/components.png" alt="组件管理页面"> |
 
 ## 明确不支持的能力
 
@@ -165,7 +165,7 @@ sudo systemctl status lsec
 sudo cat /var/lib/lsec/secrets/admin.token      # 管理员令牌，请勿粘贴到聊天或工单
 ```
 
-默认监听 `127.0.0.1:8080`，可通过 SSH 隧道访问。升级、卸载、回滚与签名校验见 [部署与运维](docs/DEPLOYMENT.md) 和 [发布说明](docs/RELEASE.md)。
+默认监听 `127.0.0.1:8080`，可通过 SSH 隧道访问。升级、卸载、回滚与签名校验见 [部署与运维](docs/DEPLOYMENT.zh-CN.md) 和 [发布说明](docs/RELEASE.zh-CN.md)。
 
 宿主机上直接使用 CLI：
 
@@ -196,7 +196,7 @@ PYTHONPATH=src python3 -m lsec.cli --server http://127.0.0.1:8080 --token "$(cat
 - YARA 签名、哈希、编译校验、版本管理与扫描去重
 - Wazuh 告警文件接入的偏移、轮转、截断与边界处理
 
-当前完整测试为 `160 tests OK`；真实 Linux + ClamAV/YARA 的 E2E 验证见 [测试说明](docs/TESTING.md) 与 [安全/性能测试报告](docs/TEST-REPORT.md)。EICAR 验证脚本见 `scripts/e2e-eicar.sh`。
+当前完整测试为 `160 tests OK`；真实 Linux + ClamAV/YARA 的 E2E 验证见 [测试说明](docs/TESTING.zh-CN.md) 与 [安全/性能测试报告](docs/TEST-REPORT.zh-CN.md)。EICAR 验证脚本见 `scripts/e2e-eicar.sh`。
 
 ## 目录结构
 
@@ -227,14 +227,14 @@ scripts/       测试、EICAR、E2E、发布构建/校验脚本
 
 更多细节：
 
-- [架构设计](docs/ARCHITECTURE.md)
-- [HTTP API](docs/API.md)
-- [安全模型](docs/SECURITY.md)
-- [安全策略与漏洞报告](SECURITY.md)
-- [部署与运维](docs/DEPLOYMENT.md)
-- [发布说明](docs/RELEASE.md)
-- [测试说明](docs/TESTING.md)
-- [安全/性能测试报告](docs/TEST-REPORT.md)
+- [架构设计](docs/ARCHITECTURE.zh-CN.md)
+- [HTTP API](docs/API.zh-CN.md)
+- [安全模型](docs/SECURITY.zh-CN.md)
+- [安全策略与漏洞报告](SECURITY.zh-CN.md)
+- [部署与运维](docs/DEPLOYMENT.zh-CN.md)
+- [发布说明](docs/RELEASE.zh-CN.md)
+- [测试说明](docs/TESTING.zh-CN.md)
+- [安全/性能测试报告](docs/TEST-REPORT.zh-CN.md)
 
 ## 已知限制
 

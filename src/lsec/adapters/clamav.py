@@ -83,9 +83,9 @@ class ClamdClient:
                 chunks.append(data)
                 size += len(data)
                 if size > MAX_RESPONSE_BYTES:
-                    raise ClamdError("clamd 响应超过大小上限")
+                    raise ClamdError("clamd response exceeds the size limit")
             if not chunks:
-                raise ClamdError("clamd 无响应")
+                raise ClamdError("no response from clamd")
             return b"".join(chunks).decode("utf-8", errors="replace").strip()
         except (OSError, socket.timeout) as exc:
             raise ClamdError(str(exc)) from exc
@@ -145,7 +145,7 @@ def _sha256(path: str) -> tuple[str | None, str | None]:
     try:
         size = os.fstat(fd).st_size
         if size > 1024 * 1024 * 1024:
-            return None, "文件过大，跳过哈希计算"
+            return None, "file too large; skipping hash computation"
         digest = hashlib.sha256()
         with os.fdopen(fd, "rb") as fh:
             for chunk in iter(lambda: fh.read(1024 * 1024), b""):
@@ -157,7 +157,7 @@ def _sha256(path: str) -> tuple[str | None, str | None]:
 
 class ClamAVAdapter(Adapter):
     component_id = "clamav"
-    display_name = "ClamAV 病毒扫描引擎"
+    display_name = "ClamAV Antivirus Engine"
 
     def __init__(self, config: ClamAVConfig, scan_config: ScanConfig, data_dir: Path) -> None:
         self.config = config
@@ -185,7 +185,7 @@ class ClamAVAdapter(Adapter):
             "real_time_protection": {
                 "supported": False,
                 "state": "unsupported",
-                "reason": "容器部署未启用 ClamAV On-Access（需要 fanotify/内核支持，本阶段不提供实时防护）",
+                "reason": "ClamAV On-Access is not enabled in container deployments (requires fanotify/kernel support; real-time protection is not provided at this stage)",
             },
         }
         if not installed:
@@ -196,7 +196,7 @@ class ClamAVAdapter(Adapter):
                 service_status=SERVICE_NOT_INSTALLED,
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
-                error_message="未检测到 ClamAV 可执行文件",
+                error_message="ClamAV executables not detected",
                 details=details,
             )
 
@@ -224,11 +224,11 @@ class ClamAVAdapter(Adapter):
         if not running:
             health = HEALTH_DEGRADED
             error_code = "service_stopped"
-            error_message = "ClamAV 已安装但 clamd 未运行，当前没有按需扫描能力"
+            error_message = "ClamAV is installed but clamd is not running; on-demand scanning is unavailable"
         elif not db["present"]:
             health = HEALTH_DEGRADED
             error_code = "database_missing"
-            error_message = "clamd 正在运行，但未找到病毒库，扫描会失败"
+            error_message = "clamd is running but no signature database was found; scans will fail"
         elif (
             db["age_hours"] is not None
             and db["age_hours"] > max(48, self.config.update_interval_hours * 2)
@@ -236,7 +236,7 @@ class ClamAVAdapter(Adapter):
             health = HEALTH_DEGRADED
             error_code = "database_outdated"
             error_message = (
-                f"病毒库已 {db['age_hours']:.1f} 小时未更新，请检查 freshclam 更新"
+                f"signature database has not been updated for {db['age_hours']:.1f} hours; check freshclam updates"
             )
 
         if daemon_version:
@@ -289,12 +289,12 @@ class ClamAVAdapter(Adapter):
     def start(self) -> ProbeResult:
         clamd_bin = which(self.config.clamd_bin)
         if not clamd_bin:
-            raise component_unavailable("未安装 clamd，无法启动 ClamAV")
+            raise component_unavailable("clamd is not installed; cannot start ClamAV")
         if self.client.ping():
             return self.probe()
         if not _db_snapshot(self.config.database_dir)["present"]:
             raise component_unavailable(
-                "未找到病毒库，拒绝启动扫描引擎；请先执行病毒库更新",
+                "no signature database found; refusing to start the scan engine; update signatures first",
                 {"database_dir": self.config.database_dir},
             )
         self._write_clamd_config()
@@ -323,18 +323,18 @@ class ClamAVAdapter(Adapter):
                 except OSError:
                     pass
                 raise component_unavailable(
-                    "clamd 启动后立即退出", {"exit_code": self._process.returncode, "log_tail": tail}
+                    "clamd exited immediately after starting", {"exit_code": self._process.returncode, "log_tail": tail}
                 )
             time.sleep(0.5)
-        raise component_unavailable("clamd 启动超时（45 秒）")
+        raise component_unavailable("clamd startup timed out (45 seconds)")
 
     def stop(self) -> ProbeResult:
         if not self.client.ping():
-            raise conflict("clamd 当前未运行")
+            raise conflict("clamd is not running")
         try:
             self.client.shutdown()
         except ClamdError as exc:
-            log.warning("clamd SHUTDOWN 失败: %s", exc)
+            log.warning("clamd SHUTDOWN failed: %s", exc)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             if not self.client.ping():
@@ -342,13 +342,13 @@ class ClamAVAdapter(Adapter):
             time.sleep(0.5)
         if self._process and self._process.poll() is None:
             self._process.terminate()
-        raise component_unavailable("clamd 未在 20 秒内停止")
+        raise component_unavailable("clamd did not stop within 20 seconds")
 
     # ---------------------------------------------------------------- update
     def update(self) -> dict[str, Any]:
         freshclam = which(self.config.freshclam_bin)
         if not freshclam:
-            raise component_unavailable("未安装 freshclam，无法更新病毒库")
+            raise component_unavailable("freshclam is not installed; cannot update signatures")
         started = time.monotonic()
         result = run(
             [
@@ -389,14 +389,14 @@ class ClamAVAdapter(Adapter):
             return {
                 "checked": False,
                 "ok": None,
-                "reason": "未安装 sigtool，未验证病毒库数字签名",
+                "reason": "sigtool is not installed; signature database digital signature was not verified",
                 "files": [],
             }
         if not cvd_names:
             return {
                 "checked": False,
                 "ok": None,
-                "reason": "未找到 .cvd 病毒库；.cld 目录格式不包含 CVD 数字签名",
+                "reason": "no .cvd signature database found; the .cld directory format carries no CVD digital signature",
                 "files": [],
             }
         results: list[dict[str, Any]] = []
@@ -444,7 +444,7 @@ class ClamAVAdapter(Adapter):
                     skipped["non_regular"] += 1
                 continue
             if not os.path.isdir(target):
-                errors.append({"path": target, "error": "目标不存在或不是目录/普通文件"})
+                errors.append({"path": target, "error": "target does not exist or is not a directory/regular file"})
                 continue
 
             def on_error(exc: OSError) -> None:
@@ -478,13 +478,13 @@ class ClamAVAdapter(Adapter):
     def run_task(self, task: dict[str, Any], context: TaskContext) -> ScanOutcome:
         if not self.client.ping():
             raise component_unavailable(
-                "clamd 未运行，无法执行扫描", {"component": self.component_id}
+                "clamd is not running; cannot perform the scan", {"component": self.component_id}
             )
         if not _db_snapshot(self.config.database_dir)["present"]:
-            raise component_unavailable("未找到病毒库，无法执行扫描")
+            raise component_unavailable("no signature database found; cannot perform the scan")
         targets = [str(t) for t in task.get("target_paths", [])]
         if not targets:
-            raise invalid("扫描目标为空")
+            raise invalid("scan targets are empty")
 
         max_bytes = self.scan_config.max_file_size_mb * 1024 * 1024
         errors: list[dict[str, Any]] = []
@@ -553,12 +553,12 @@ class ClamAVAdapter(Adapter):
                 try:
                     context.on_detection(detection)
                 except Exception as exc:  # event persistence must not abort scanning
-                    log.exception("记录检测事件失败")
+                    log.exception("failed to record detection event")
                     if len(errors) < max_errors:
-                        errors.append({"path": path, "error": f"记录事件失败: {exc}"})
+                        errors.append({"path": path, "error": f"failed to record event: {exc}"})
             else:
                 if len(errors) < max_errors:
-                    errors.append({"path": path, "error": response[:500] or "clamd 返回空响应"})
+                    errors.append({"path": path, "error": response[:500] or "clamd returned an empty response"})
 
             now = time.monotonic()
             if now - last_report >= 1.0:

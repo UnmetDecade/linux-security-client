@@ -23,7 +23,7 @@ SIGN_KEY=${LSEC_GPG_KEY:-}
 while [ $# -gt 0 ]; do
     case "$1" in
         --sign-key)
-            [ $# -ge 2 ] || { echo "缺少 --sign-key 参数" >&2; exit 2; }
+            [ $# -ge 2 ] || { echo "missing --sign-key argument" >&2; exit 2; }
             SIGN_KEY=$2
             shift 2
             ;;
@@ -32,15 +32,15 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "未知参数: $1" >&2
+            echo "unknown argument: $1" >&2
             exit 2
             ;;
     esac
 done
 
-[ -n "$VERSION" ] || { echo "无法从 src/lsec/__init__.py 读取版本号" >&2; exit 1; }
-command -v dpkg-deb >/dev/null 2>&1 || { echo "需要 dpkg-deb（请在 Debian/Ubuntu 上构建）" >&2; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo "需要 python3" >&2; exit 1; }
+[ -n "$VERSION" ] || { echo "cannot read version from src/lsec/__init__.py" >&2; exit 1; }
+command -v dpkg-deb >/dev/null 2>&1 || { echo "dpkg-deb is required (build on Debian/Ubuntu)" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
 
 # Refuse to build from a tree with syntax errors.
 PYTHONPATH="$ROOT/src" python3 -m compileall -q "$ROOT/src" >/dev/null
@@ -121,7 +121,7 @@ EOF
 ( cd "$DIST" && sha256sum "lsec_${VERSION}_all.deb" "lsec-${VERSION}-source.tar.gz" > SHA256SUMS )
 
 if [ -n "$SIGN_KEY" ]; then
-    command -v gpg >/dev/null 2>&1 || { echo "需要 gpg 才能签名" >&2; exit 1; }
+    command -v gpg >/dev/null 2>&1 || { echo "gpg is required for signing" >&2; exit 1; }
     gpg --batch --yes --armor --local-user "$SIGN_KEY" \
         --output "$DEB.asc" --detach-sign "$DEB"
     gpg --batch --yes --armor --local-user "$SIGN_KEY" \
@@ -130,7 +130,7 @@ if [ -n "$SIGN_KEY" ]; then
     gpg --verify "$DIST/SHA256SUMS.asc" "$DIST/SHA256SUMS" >/dev/null
 fi
 
-echo "构建完成:"
+echo "Build complete:"
 echo "  $DEB"
 echo "  $SOURCE"
 echo "  $DIST/SHA256SUMS"

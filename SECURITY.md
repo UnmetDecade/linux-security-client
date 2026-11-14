@@ -1,27 +1,29 @@
 # Security Policy
 
-## 报告安全问题
+**English** | [简体中文](SECURITY.zh-CN.md)
 
-请不要通过公开 Issue 披露未修复的漏洞细节、可利用载荷或真实环境数据。
+## Reporting security issues
 
-优先使用仓库的 **Security → Report a vulnerability**（GitHub Security Advisories）私下报告，并尽量包含：
+Please do not disclose unpatched vulnerability details, exploit payloads, or real-environment data through public Issues.
 
-- 受影响版本或提交
-- 复现步骤与影响范围
-- 是否涉及令牌、路径越界、命令执行、权限提升或数据泄露
+Prefer reporting privately through the repository's **Security → Report a vulnerability** (GitHub Security Advisories), and include as much of the following as possible:
 
-维护者确认后会协调修复与披露时间。
+- Affected version or commit
+- Reproduction steps and impact scope
+- Whether tokens, path out-of-bounds, command execution, privilege escalation, or data leakage are involved
 
-## 安全边界
+After the maintainers confirm, they will coordinate the fix and disclosure timeline.
 
-lsec 的安全模型、信任边界与已知限制见 [docs/SECURITY.md](docs/SECURITY.md)。以下行为属于设计选择，不是漏洞：
+## Security boundaries
 
-- 不自动隔离、删除、杀进程或停止/重启容器
-- 不提供 Wazuh Manager 能力
-- Containerd 仅探测，不提供容器清单
-- 未验证的组件或更新签名不会显示为“已通过”
-- 默认仅监听回环地址；局域网明文访问需要显式开启
+See [docs/SECURITY.md](docs/SECURITY.md) for lsec's security model, trust boundaries, and known limitations. The following behaviors are design choices, not vulnerabilities:
 
-## 支持范围
+- No automatic quarantine, deletion, process killing, or container stop/restart
+- Does not provide Wazuh Manager capability
+- Containerd is probe-only and provides no container inventory
+- Unverified components or update signatures are never shown as "passed"
+- Listens only on the loopback address by default; plaintext LAN access requires explicit enablement
 
-安全修复优先覆盖当前发布版本及 `main` 分支。第三方组件（ClamAV、YARA、Lynis、Falco、Wazuh、Docker）本身的漏洞应同时报告给对应上游项目。
+## Support scope
+
+Security fixes prioritize the current release version and the `main` branch. Vulnerabilities in third-party components (ClamAV, YARA, Lynis, Falco, Wazuh, Docker) themselves should also be reported to the corresponding upstream projects.

@@ -124,7 +124,7 @@ def _hash_file(path: str, limit: int) -> tuple[str | None, int]:
 
 class YaraAdapter(Adapter):
     component_id = "yara"
-    display_name = "YARA 规则检测"
+    display_name = "YARA Rule Scanning"
 
     def __init__(
         self,
@@ -179,7 +179,7 @@ class YaraAdapter(Adapter):
                 health_status=HEALTH_UNAVAILABLE,
                 capabilities=[],
                 error_code="disabled",
-                error_message="YARA 已在配置中禁用；不会执行规则扫描",
+                error_message="YARA is disabled in configuration; rule scanning will not run",
                 details=details,
             )
         if not binary:
@@ -191,7 +191,7 @@ class YaraAdapter(Adapter):
                 health_status=HEALTH_UNAVAILABLE,
                 capabilities=[],
                 error_code="not_installed",
-                error_message="未检测到 YARA 二进制，无法执行规则扫描",
+                error_message="YARA binary not detected; rule scanning cannot run",
                 details=details,
             )
         if not yarac:
@@ -204,7 +204,7 @@ class YaraAdapter(Adapter):
                 health_status=HEALTH_DEGRADED,
                 capabilities=["rule_scan"],
                 error_code="yarac_missing",
-                error_message="YARA 已安装，但缺少 yarac，无法校验和加载规则包",
+                error_message="YARA is installed but yarac is missing; rule packs cannot be validated or loaded",
                 details=details,
             )
         if details["state_error"]:
@@ -230,13 +230,13 @@ class YaraAdapter(Adapter):
                 health_status=HEALTH_DEGRADED,
                 capabilities=["rule_pack_management"],
                 error_code="no_active_packs",
-                error_message="YARA 已安装，但没有已激活的规则包，规则扫描不可用",
+                error_message="YARA is installed but no rule pack is active; rule scanning is unavailable",
                 details=details,
             )
         key_ready = bool((snapshot.get("signature") or {}).get("public_key_present"))
         warning = None
         if self.config.require_signature and not key_ready:
-            warning = "规则包签名校验已启用，但可信公钥尚未配置；新规则包无法安装"
+            warning = "Rule-pack signature verification is enabled, but no trusted public key is configured; new rule packs cannot be installed"
         return ProbeResult(
             component_id=self.component_id,
             display_name=self.display_name,
@@ -258,25 +258,25 @@ class YaraAdapter(Adapter):
         return {
             "component_id": self.component_id,
             "installable_from_ui": False,
-            "package_source": "发行版官方仓库（Debian/Ubuntu: yara）",
-            "privileges": "规则扫描本身不需要 root；安装软件包需要系统包管理器权限",
-            "dependencies": ["python3（客户端）", "yara", "yarac（通常随 yara 提供）", "openssl（签名校验）"],
+            "package_source": "official distribution repository (Debian/Ubuntu: yara)",
+            "privileges": "Rule scanning itself does not require root; installing packages requires system package-manager privileges",
+            "dependencies": ["python3 (client)", "yara", "yarac (usually shipped with yara)", "openssl (signature verification)"],
             "steps": [
-                "在宿主或镜像中通过官方仓库安装 yara 与 openssl",
-                "将经过签名和哈希校验的规则包放入 YARA inbox 目录",
-                "在 Web/CLI 中显式安装并激活规则包",
+                "Install yara and openssl from official repositories on the host or in the image",
+                "Place a signature- and hash-verified rule pack in the YARA inbox directory",
+                "Explicitly install and activate the rule pack from the web UI or CLI",
             ],
             "notes": [
-                "本客户端不会自动下载或加载未验证规则包",
-                "YARA 是规则匹配引擎，命中不等同于已确认恶意软件",
-                "不会自动隔离或删除命中文件",
+                "This client never downloads or loads unverified rule packs automatically",
+                "YARA is a rule-matching engine; a match is not proof of confirmed malware",
+                "Matched files are never quarantined or deleted automatically",
             ],
         }
 
     # -------------------------------------------------------------- scanning
     def run_task(self, task: dict[str, Any], context: TaskContext) -> ScanOutcome:
         if not self.config.enabled:
-            raise component_unavailable("YARA 已在配置中禁用")
+            raise component_unavailable("YARA is disabled in configuration")
         packs = self.rules.active_rule_sets()
         usable = [pack for pack in packs if not pack.get("error") and pack.get("rule_files")]
         pack_errors = [
@@ -290,13 +290,13 @@ class YaraAdapter(Adapter):
         ]
         if not usable:
             raise component_unavailable(
-                "没有可用的 YARA 规则包，请先安装并激活经过校验的规则包",
+                "No usable YARA rule pack; install and activate a verified rule pack first",
                 {"packs": pack_errors},
             )
         yara = which(self.config.binary)
         yarac = which(self.config.yarac_binary)
         if not yara or not yarac:
-            raise component_unavailable("YARA 或 yarac 不可用，无法执行规则扫描")
+            raise component_unavailable("YARA or yarac is unavailable; rule scanning cannot run")
 
         files, skipped = self._enumerate_targets(task.get("target_paths") or [])
         outcome = ScanOutcome()
@@ -313,8 +313,8 @@ class YaraAdapter(Adapter):
                 "skipped": skipped,
                 "files_scanned_semantics": "files submitted to YARA",
                 "note": (
-                    "YARA CLI 不提供文件级进度或扫描总数；进度按已提交给 YARA 的文件数计算，"
-                    "files_scanned 表示实际提交给 YARA 的文件数。"
+                    "The YARA CLI provides no per-file progress or total scan count; progress is computed from the number of files submitted to YARA, "
+                    "and files_scanned is the number of files actually submitted to YARA."
                 ),
             }
         )
@@ -376,7 +376,7 @@ class YaraAdapter(Adapter):
                             outcome.error_details.append(
                                 {
                                     "pack_id": pack["pack_id"],
-                                    "error": "YARA 返回了不在扫描范围内的目标，已忽略",
+                                    "error": "YARA returned a target outside the scan scope; it was ignored",
                                 }
                             )
                             continue
@@ -424,7 +424,7 @@ class YaraAdapter(Adapter):
         outcome.summary["total_files"] = len(files)
         if successful_packs == 0 and not outcome.cancelled:
             raise component_unavailable(
-                "所有 YARA 规则包均执行失败，未产生可信扫描结果",
+                "All YARA rule packs failed; no trustworthy scan results were produced",
                 {"errors": outcome.error_details[:5]},
             )
         return outcome
@@ -467,7 +467,7 @@ class YaraAdapter(Adapter):
             except OSError:
                 pass
             return True, None
-        return False, (result.tail(1200) or "yarac 未生成编译结果")[:1500]
+        return False, (result.tail(1200) or "yarac produced no compiled output")[:1500]
 
     def _scan_batch(
         self,
@@ -514,9 +514,9 @@ class YaraAdapter(Adapter):
                 pass
         matches = parse_yara_output(result.stdout)
         if result.timed_out:
-            return matches, f"YARA 批次超时（{self.config.scan_timeout_seconds}s）"
+            return matches, f"YARA batch timed out ({self.config.scan_timeout_seconds}s)"
         if result.returncode != 0:
-            return matches, f"YARA 返回 {result.returncode}: {result.tail(800)}"
+            return matches, f"YARA returned {result.returncode}: {result.tail(800)}"
         return matches, None
 
     def _enumerate_targets(

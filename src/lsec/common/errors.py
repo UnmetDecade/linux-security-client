@@ -68,7 +68,7 @@ def conflict(message: str, details: Any = None) -> LsecError:
     return LsecError(ErrorCode.CONFLICT, message, details)
 
 
-def unauthorized(message: str = "需要登录或有效的访问令牌") -> LsecError:
+def unauthorized(message: str = "Login or a valid access token is required") -> LsecError:
     return LsecError(ErrorCode.UNAUTHORIZED, message)
 
 

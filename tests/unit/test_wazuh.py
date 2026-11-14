@@ -122,10 +122,10 @@ class IngestEventTests(unittest.TestCase):
         self.assertEqual(details["agent_id"], "001")
         self.assertEqual(details["engine"], "wazuh")
         self.assertEqual(details["scope"], "local_agent_alert_file")
-        self.assertIn("不是 Wazuh Manager", event["description"])
+        self.assertIn("not a Wazuh Manager", event["description"])
         self.assertTrue(any("Manager" in action for action in event["recommended_actions"]))
-        self.assertIn("不会自动隔离或删除文件", event["description"])
-        self.assertIn("如需处置", event["recommended_actions"][-1])
+        self.assertIn("never quarantines or deletes files automatically", event["description"])
+        self.assertIn("If action is needed", event["recommended_actions"][-1])
 
     def test_syscheck_uses_file_target(self) -> None:
         event = self.events.ingest_wazuh_alert(
@@ -253,7 +253,7 @@ class IngesterTests(unittest.TestCase):
         status = self._ingester().tick()
         self.assertEqual(status["parse_errors"], 1)
         self.assertEqual(status["events_total"], 1)
-        self.assertIn("解析失败", status["last_error"])
+        self.assertIn("parse", status["last_error"])
 
     def test_oversize_line_skipped_without_partial_alert(self) -> None:
         ingester = self._ingester(max_read_bytes=1024, max_event_bytes=1024)
@@ -279,7 +279,7 @@ class IngesterTests(unittest.TestCase):
         self._append(_alert())
         status = self._ingester().tick()
         self.assertEqual(status["events_total"], 0)
-        self.assertIn("状态文件", status["state_error"])
+        self.assertIn("state file", status["state_error"])
 
     def test_symlink_alerts_file_rejected(self) -> None:
         real = Path(self.tmp.name) / "real-alerts.json"
@@ -289,13 +289,13 @@ class IngesterTests(unittest.TestCase):
         status = self._ingester().tick()
         self.assertEqual(status["events_total"], 0)
         self.assertFalse(status["file_present"])
-        self.assertIn("无法打开", status["last_error"])
+        self.assertIn("cannot open", status["last_error"])
 
     def test_disabled_ingester_does_not_run(self) -> None:
         ingester = self._ingester(enabled=False)
         self.assertFalse(ingester.active)
         self.assertEqual(ingester.tick()["events_total"], 0)
-        self.assertIn("未启用", ingester.status()["note"])
+        self.assertIn("not enabled", ingester.status()["note"])
         self.assertFalse(self.state_dir.exists())
 
     def test_ingest_disabled_keeps_state_dir_untouched(self) -> None:
@@ -348,7 +348,7 @@ class AdapterTests(unittest.TestCase):
         ).probe()
         self.assertFalse(result.installed)
         self.assertEqual(result.error_code, "not_installed")
-        self.assertIn("不提供 Wazuh Manager", result.error_message)
+        self.assertIn("does not provide Wazuh Manager", result.error_message)
 
     def test_missing_config_degraded(self) -> None:
         result = WazuhAdapter(self._config()).probe()
@@ -406,7 +406,7 @@ class AdapterTests(unittest.TestCase):
     def test_install_plan_is_manual(self) -> None:
         plan = WazuhAdapter(self._config()).install_plan()
         self.assertFalse(plan["installable_from_ui"])
-        self.assertTrue(any("不是 Wazuh Manager" in note for note in plan["notes"]))
+        self.assertTrue(any("not a Wazuh Manager" in note for note in plan["notes"]))
         self.assertTrue(any("agent-auth" in step for step in plan["steps"]))
 
     def test_status_parsing_ignores_other_running_daemons(self) -> None:

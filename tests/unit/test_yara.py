@@ -284,7 +284,7 @@ class YaraPackInstallTests(YaraPackTestBase):
         path, _ = self.make_pack()
         with self.assertRaises(LsecError) as caught:
             service.install(str(path), activate=True)
-        self.assertIn("编译失败", caught.exception.message)
+        self.assertIn("compilation failed", caught.exception.message)
         self.assertEqual(service.list_packs(), [])
 
     def test_activation_switch_and_delete_rules(self) -> None:
@@ -327,7 +327,7 @@ class YaraPackInstallTests(YaraPackTestBase):
         state = Path(self.config.rules_dir) / "state.json"
         state.write_text("{broken", encoding="utf-8")
         snapshot = self.service.scan_snapshot()
-        self.assertIn("损坏", snapshot["state_error"])
+        self.assertIn("corrupt", snapshot["state_error"])
         with self.assertRaises(LsecError):
             self.service.active_rule_sets()
 
@@ -432,7 +432,7 @@ class YaraSignatureTests(YaraPackTestBase):
         service = YaraRulePackService(config)
         with self.assertRaises(LsecError) as caught:
             service.install(str(signed), activate=True)
-        self.assertIn("签名", caught.exception.message)
+        self.assertIn("signature", caught.exception.message)
         self.assertEqual(service.list_packs(), [])
 
     def test_signature_required_without_key_is_rejected(self) -> None:
@@ -553,7 +553,7 @@ class YaraAdapterTests(YaraPackTestBase):
         self.assertEqual(outcome.detections, 0)
         self.assertGreaterEqual(outcome.errors, 1)
         self.assertTrue(
-            any("不在扫描范围" in item.get("error", "") for item in outcome.error_details)
+            any("outside the scan scope" in item.get("error", "") for item in outcome.error_details)
         )
         self.assertEqual(task["_detections"], [])
 

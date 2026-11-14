@@ -58,8 +58,8 @@ class WazuhAlertIngester:
             "started_at": None,
             "started_at_end": False,
             "note": (
-                "仅接入本地 Wazuh Agent alerts.json 的新增行；"
-                "不是 Wazuh Manager，也不验证 Manager 连接"
+                "Only ingests new lines from the local Wazuh Agent alerts.json; "
+                "it is not a Wazuh Manager and does not verify Manager connectivity"
             ),
         }
         if self.active:
@@ -83,7 +83,7 @@ class WazuhAlertIngester:
             target=self._loop, name="wazuh-alert-ingest", daemon=True
         )
         self._thread.start()
-        log.info("Wazuh 本地告警接入已启动 path=%s", self.config.alerts_path)
+        log.info("Wazuh local alert ingestion started path=%s", self.config.alerts_path)
 
     def stop(self) -> None:
         self._stop.set()
@@ -100,7 +100,7 @@ class WazuhAlertIngester:
             try:
                 self.tick()
             except Exception as exc:  # ingestion must not kill the daemon
-                log.exception("Wazuh 告警接入异常")
+                log.exception("Wazuh alert ingestion error")
                 with self._lock:
                     self._status["last_error"] = str(exc)[:500]
             self._stop.wait(self.config.poll_seconds)
@@ -127,11 +127,11 @@ class WazuhAlertIngester:
             }
         )
         if not self.config.enabled:
-            snapshot["note"] = "Wazuh 集成未启用（可选）"
+            snapshot["note"] = "Wazuh integration is not enabled (optional)"
         elif not self.config.ingest_enabled:
-            snapshot["note"] = "Wazuh 本地告警接入未启用；仅可查看 Agent 状态"
+            snapshot["note"] = "Wazuh local alert ingestion is not enabled; only Agent status is available"
         elif not self._running:
-            snapshot["note"] = "Wazuh 本地告警接入未运行"
+            snapshot["note"] = "Wazuh local alert ingestion is not running"
         return snapshot
 
     # ----------------------------------------------------------------- tick
@@ -157,14 +157,14 @@ class WazuhAlertIngester:
         except OSError as exc:
             with self._lock:
                 self._status["file_present"] = False
-                self._status["last_error"] = f"无法打开本地 Wazuh 告警文件: {exc}"[:500]
+                self._status["last_error"] = f"cannot open the local Wazuh alert file: {exc}"[:500]
             return self.status()
 
         try:
             st = os.fstat(fd)
             if not stat.S_ISREG(st.st_mode):
                 with self._lock:
-                    self._status["last_error"] = "Wazuh 告警路径不是普通文件"
+                    self._status["last_error"] = "the Wazuh alert path is not a regular file"
                 return self.status()
             inode = int(st.st_ino)
             size = int(st.st_size)
@@ -225,7 +225,7 @@ class WazuhAlertIngester:
             if skipped_line:
                 with self._lock:
                     self._status["rejected"] += 1
-                    self._status["last_error"] = "Wazuh 告警单行超过读取上限，已跳过"
+                    self._status["last_error"] = "a Wazuh alert line exceeds the read limit and was skipped"
 
             events_total = 0
             seen = 0
@@ -246,7 +246,7 @@ class WazuhAlertIngester:
                     parse_errors += 1
                     with self._lock:
                         self._status["last_error"] = (
-                            f"Wazuh 告警 JSON 解析失败: {exc}"[:300]
+                            f"failed to parse Wazuh alert JSON: {exc}"[:300]
                         )
                     continue
                 try:
@@ -261,7 +261,7 @@ class WazuhAlertIngester:
                 except Exception as exc:  # pragma: no cover - defensive
                     rejected += 1
                     with self._lock:
-                        self._status["last_error"] = f"告警归一化失败: {exc}"[:500]
+                        self._status["last_error"] = f"alert normalization failed: {exc}"[:500]
                     continue
                 events_total += 1
                 last_event_at = event.get("last_seen_at") or event.get("created_at")
@@ -296,7 +296,7 @@ class WazuhAlertIngester:
             return self.status()
         except OSError as exc:
             with self._lock:
-                self._status["last_error"] = f"读取 Wazuh 告警失败: {exc}"[:500]
+                self._status["last_error"] = f"failed to read Wazuh alerts: {exc}"[:500]
             return self.status()
         finally:
             try:
@@ -313,13 +313,13 @@ class WazuhAlertIngester:
         except (OSError, json.JSONDecodeError) as exc:
             raise LsecError(
                 ErrorCode.INTERNAL,
-                "Wazuh 接入状态文件损坏，为避免重复/漏读已暂停接入",
+                "the Wazuh ingestion state file is corrupt; ingestion is paused to avoid duplicated or missed alerts",
                 {"path": str(self.state_path), "detail": str(exc)[:300]},
             ) from exc
         if not isinstance(raw, dict) or not isinstance(raw.get("offset"), int):
             raise LsecError(
                 ErrorCode.INTERNAL,
-                "Wazuh 接入状态文件格式无效，已暂停接入",
+                "the Wazuh ingestion state file has an invalid format; ingestion is paused",
                 {"path": str(self.state_path)},
             )
         if raw.get("alerts_path") not in (None, self.config.alerts_path):
@@ -343,7 +343,7 @@ class WazuhAlertIngester:
         except OSError as exc:
             raise LsecError(
                 ErrorCode.INTERNAL,
-                "无法保存 Wazuh 接入状态",
+                "cannot save the Wazuh ingestion state",
                 {"path": str(self.state_path), "detail": str(exc)[:300]},
             ) from exc
         finally:

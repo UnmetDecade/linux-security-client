@@ -63,7 +63,7 @@ class AuditService:
     def start(self) -> None:
         recovered = audit_run_store.recover_interrupted(self.db)
         if recovered:
-            log.warning("发现 %s 个中断体检，已标记为失败", recovered)
+            log.warning("found %s interrupted audits; marked as failed", recovered)
         self._thread = threading.Thread(
             target=self._worker_loop, name="host-audit", daemon=True
         )
@@ -79,7 +79,7 @@ class AuditService:
     def create(self, actor: str) -> dict[str, Any]:
         with self._create_lock:
             if audit_run_store.latest_active(self.db):
-                raise conflict("已有主机体检正在运行，请等待完成")
+                raise conflict("a host audit is already running; wait for it to finish")
             scope = "container" if host_info().get("container", {}).get("containerized") else "host"
             run = audit_run_store.create_run(
                 self.db, scope=scope, requested_by=actor
@@ -112,18 +112,18 @@ class AuditService:
             try:
                 self._execute(audit_id)
             except Exception:
-                log.exception("主机体检异常 audit=%s", audit_id)
+                log.exception("host audit failed audit=%s", audit_id)
                 try:
                     audit_run_store.finish_run(
                         self.db,
                         audit_id,
                         status="failed",
-                        summary={"error": "体检执行发生内部异常"},
+                        summary={"error": "internal error while running the audit"},
                         checks_total=0,
                         findings_count=0,
                         errors_count=1,
                         severity_counts={},
-                        error="体检执行发生内部异常",
+                        error="internal error while running the audit",
                     )
                     audit_store.record(
                         self.db,
@@ -131,11 +131,11 @@ class AuditService:
                         actor="system",
                         target=audit_id,
                         result="failure",
-                        error="内部异常",
+                        error="internal error",
                         confirmed=True,
                     )
                 except Exception:
-                    log.exception("写入体检失败状态失败 audit=%s", audit_id)
+                    log.exception("failed to record audit failure status audit=%s", audit_id)
 
     def _execute(self, audit_id: str) -> None:
         if not audit_run_store.mark_running(self.db, audit_id):
@@ -145,15 +145,15 @@ class AuditService:
         containerized = bool(host_info().get("container", {}).get("containerized"))
         if containerized:
             scope_note = (
-                "检查范围为容器可见的文件系统、网络命名空间和内核参数；"
-                "未挂载的宿主机路径与宿主网络不在范围内"
+                "Scope covers the filesystem, network namespace and kernel parameters visible to the container; "
+                "unmounted host paths and the host network are out of scope"
             )
         else:
-            scope_note = "检查范围为当前主机文件系统和网络命名空间"
+            scope_note = "Scope covers the current host filesystem and network namespace"
         limitations = [
-            "所有检查均为只读，不会修改系统配置、账户、服务或内核参数",
-            "Lynis 的 suggestion 条目保存在报告中，不逐条生成安全事件以减少噪声",
-            "检查失败（权限/文件缺失）与风险发现分开记录，不会把失败当成风险",
+            "All checks are read-only and do not modify system configuration, accounts, services, or kernel parameters",
+            "Lynis suggestion entries are kept in the report and are not turned into individual security events, to reduce noise",
+            "Check failures (permissions/missing files) are recorded separately from risk findings; failures are never treated as risks",
         ]
         system_info = collect_system_info()
 
@@ -167,11 +167,11 @@ class AuditService:
             )
             lynis_findings = self._lynis_results(lynis_outcome)
         except Exception as exc:
-            log.exception("Lynis 执行异常 audit=%s", audit_id)
+            log.exception("Lynis execution failed audit=%s", audit_id)
             lynis_outcome = LynisOutcome(
                 available=False,
                 enabled=self.config.audit.lynis_enabled,
-                error=f"Lynis 执行异常: {exc}",
+                error=f"Lynis execution error: {exc}",
             )
 
         results: list[CheckResult] = [*builtin, *lynis_findings]
@@ -180,7 +180,7 @@ class AuditService:
                 CheckResult(
                     check_id="LYNIS-RUN",
                     category="system",
-                    title="Lynis 执行未完整完成",
+                    title="Lynis run did not complete fully",
                     status=ERROR,
                     detail=lynis_outcome.error,
                     source="lynis",
@@ -216,7 +216,7 @@ class AuditService:
                     severity=item.severity or "medium",
                     title=item.title,
                     description=item.detail
-                    + (f" 建议: {item.remediation}" if item.remediation else ""),
+                    + (f" Recommendation: {item.remediation}" if item.remediation else ""),
                     check_id=item.check_id,
                     target=item.target,
                     evidence={
@@ -234,7 +234,7 @@ class AuditService:
                 )
                 ingested += 1
             except Exception as exc:
-                log.exception("写入审计事件失败 audit=%s check=%s", audit_id, item.check_id)
+                log.exception("failed to write audit event audit=%s check=%s", audit_id, item.check_id)
                 event_errors.append(f"{item.check_id}: {exc}")
 
         errors_count = len(check_errors) + len(event_errors)
@@ -257,7 +257,7 @@ class AuditService:
             "lynis": lynis_outcome.to_dict() if lynis_outcome else {
                 "available": False,
                 "enabled": self.config.audit.lynis_enabled,
-                "error": "Lynis 未执行",
+                "error": "Lynis was not run",
             },
             "duration_seconds": round(time.monotonic() - started, 1),
         }
@@ -266,7 +266,7 @@ class AuditService:
         try:
             evidence_path = self.evidence.write_audit_report(audit_id, summary)
         except OSError as exc:
-            evidence_error = f"写入体检证据失败: {exc}"
+            evidence_error = f"failed to write audit evidence: {exc}"
             status = "failed"
             errors_count += 1
             summary["evidence_error"] = evidence_error
@@ -302,7 +302,7 @@ class AuditService:
             confirmed=True,
         )
         log.info(
-            "主机体检结束 audit=%s status=%s checks=%s findings=%s errors=%s",
+            "host audit finished audit=%s status=%s checks=%s findings=%s errors=%s",
             audit_id,
             status,
             len(results),
@@ -316,7 +316,7 @@ class AuditService:
         results: list[CheckResult] = []
         for warning in outcome.warnings:
             test_id = warning.get("test_id") or "LYNIS"
-            text = warning.get("text") or "Lynis 警告"
+            text = warning.get("text") or "Lynis warning"
             target = warning.get("target") or ""
             remediation = warning.get("remediation") or None
             digest = hashlib.sha256(
@@ -326,10 +326,10 @@ class AuditService:
                 CheckResult(
                     check_id=test_id,
                     category="configuration",
-                    title=f"Lynis 警告: {text[:160]}",
+                    title=f"Lynis warning: {text[:160]}",
                     status=FINDING,
                     severity=warning_severity(test_id, text),
-                    detail=text + (f"（目标: {target}）" if target else ""),
+                    detail=text + (f" (target: {target})" if target else ""),
                     remediation=remediation,
                     source="lynis",
                     target={

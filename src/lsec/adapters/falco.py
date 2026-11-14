@@ -97,33 +97,33 @@ def evaluate_capability(environment: dict[str, Any]) -> dict[str, Any]:
 
     if major is None:
         state = "unknown"
-        reason = "无法读取内核版本，不能判断 eBPF 兼容性"
+        reason = "cannot read kernel version; cannot determine eBPF compatibility"
     elif not legacy_kernel:
         state = "unsupported"
-        reason = f"内核 {release} 低于 Falco eBPF 的最低要求 4.14"
+        reason = f"kernel {release} is below the Falco eBPF minimum of 4.14"
     elif modern_kernel and btf and privileged:
         state = "compatible"
         reason = (
-            f"内核 {release} 支持现代 eBPF，BTF 存在，当前进程具备所需 capability；"
-            "但 Falco 是否已在宿主侧运行仍需单独确认"
+            f"kernel {release} supports modern eBPF, BTF is present, and the current process has the required capabilities; "
+            "however, whether Falco itself is running on the host must still be verified separately"
         )
     elif not privileged:
         state = "requires_privileges"
         reason = (
-            "缺少 CAP_SYS_ADMIN，或缺少 CAP_BPF + CAP_PERFMON；"
-            "Falco 驱动无法在当前权限下加载"
+            "CAP_SYS_ADMIN is missing, or CAP_BPF + CAP_PERFMON are missing; "
+            "the Falco driver cannot be loaded with the current privileges"
         )
     elif modern_kernel and not btf:
         state = "requires_setup"
         reason = (
-            f"内核 {release} 支持现代 eBPF，但未检测到 /sys/kernel/btf/vmlinux；"
-            "需要使用带 BTF 的内核或安装匹配的内核头文件"
+            f"kernel {release} supports modern eBPF, but /sys/kernel/btf/vmlinux was not detected; "
+            "use a kernel with BTF or install matching kernel headers"
         )
     else:
         state = "requires_setup"
         reason = (
-            f"内核 {release} 不满足现代 eBPF 的 5.8+ 建议；"
-            "可能只能使用 legacy eBPF/内核模块，需要匹配的内核头文件"
+            f"kernel {release} does not meet the recommended 5.8+ for modern eBPF; "
+            "only legacy eBPF/kernel modules may be available, and matching kernel headers are required"
         )
 
     return {
@@ -149,7 +149,7 @@ def evaluate_capability(environment: dict[str, Any]) -> dict[str, Any]:
 
 class FalcoAdapter(Adapter):
     component_id = "falco"
-    display_name = "Falco 运行时安全"
+    display_name = "Falco Runtime Security"
 
     def __init__(
         self,
@@ -181,7 +181,7 @@ class FalcoAdapter(Adapter):
         except Exception as exc:
             capability = {
                 "state": "unknown",
-                "reason": f"无法读取内核/eBPF 环境: {exc}"[:500],
+                "reason": f"cannot read kernel/eBPF environment: {exc}"[:500],
                 "running_verified": False,
             }
         details: dict[str, Any] = {
@@ -202,7 +202,7 @@ class FalcoAdapter(Adapter):
                 service_status=SERVICE_UNKNOWN,
                 health_status=HEALTH_UNKNOWN,
                 error_code="disabled",
-                error_message="Falco 集成已通过配置禁用",
+                error_message="Falco integration is disabled by configuration",
                 details=details,
             )
 
@@ -216,7 +216,7 @@ class FalcoAdapter(Adapter):
                 health_status=HEALTH_UNAVAILABLE,
                 error_code="not_installed",
                 error_message=(
-                    "未检测到 Falco；可查看安装计划，但客户端不会自动安装或加载内核驱动"
+                    "Falco not detected; an install plan is available, but the client never installs it or loads kernel drivers automatically"
                 ),
                 details=details,
             )
@@ -257,32 +257,32 @@ class FalcoAdapter(Adapter):
         return {
             "component_id": self.component_id,
             "installable_from_ui": False,
-            "risk": "Falco 需要宿主机内核能力和特权驱动；不能由 Web UI 静默安装或加载",
+            "risk": "Falco requires host kernel capabilities and a privileged driver; it cannot be silently installed or loaded from the web UI",
             "steps": [
                 {
-                    "title": "确认内核与 eBPF 支持",
-                    "detail": "在宿主机检查 uname -r、/sys/kernel/btf/vmlinux 和 /sys/fs/bpf。现代 eBPF 建议 5.8+ 内核与 BTF。",
+                    "title": "Confirm kernel and eBPF support",
+                    "detail": "On the host, check uname -r, /sys/kernel/btf/vmlinux and /sys/fs/bpf. Modern eBPF recommends a 5.8+ kernel with BTF.",
                 },
                 {
-                    "title": "从受信来源安装 Falco",
-                    "detail": "使用发行版包管理器或 Falco 官方签名仓库，固定版本并校验签名；不要使用来源不明的二进制。",
+                    "title": "Install Falco from a trusted source",
+                    "detail": "Use the distribution package manager or the official signed Falco repository, pin the version and verify signatures; do not use binaries of unknown origin.",
                 },
                 {
-                    "title": "由管理员加载驱动",
-                    "detail": "Falco 需要 CAP_SYS_ADMIN 或 CAP_BPF + CAP_PERFMON；加载驱动是宿主机特权操作，必须单独授权。",
+                    "title": "Load the driver as an administrator",
+                    "detail": "Falco requires CAP_SYS_ADMIN or CAP_BPF + CAP_PERFMON; loading the driver is a privileged host operation and must be authorized separately.",
                 },
                 {
-                    "title": "配置 JSON 告警输出",
-                    "detail": "让 Falco 输出 JSON，并转发到 lsec 的 POST /api/v1/integrations/falco；使用独立 Falco 接入令牌，不要复用管理员令牌。",
+                    "title": "Configure JSON alert output",
+                    "detail": "Configure Falco to emit JSON and forward it to lsec's POST /api/v1/integrations/falco; use a dedicated Falco integration token, not an administrator token.",
                 },
                 {
-                    "title": "验证事件接收",
-                    "detail": "触发一条非生产测试规则，确认事件进入统一事件中心并带有容器关联信息；若内核不兼容，界面会明确显示不支持。",
+                    "title": "Verify event ingestion",
+                    "detail": "Trigger a non-production test rule and confirm the event reaches the unified event center with container correlation; if the kernel is incompatible, the UI clearly reports it as unsupported.",
                 },
             ],
             "notes": [
-                "lsec 不安装、不启动、不加载 Falco 驱动，也不自动修改宿主机内核配置。",
-                "Falco 不应运行在 lsec 容器内；Falco 需要宿主级权限，容器化运行会破坏最小权限边界。",
-                "仅安装二进制不等于正在防护；运行状态由宿主侧管理员确认。",
+                "lsec does not install or start Falco, does not load the Falco driver, and does not modify host kernel configuration automatically.",
+                "Falco should not run inside the lsec container; it needs host-level privileges, and containerized operation would break the least-privilege boundary.",
+                "Having the binary installed does not mean protection is active; host-side administrators must confirm the running state.",
             ],
         }

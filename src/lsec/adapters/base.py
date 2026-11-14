@@ -89,32 +89,32 @@ class Adapter:
     display_name: str = "Base"
 
     def probe(self) -> ProbeResult:
-        raise not_implemented(f"{self.component_id} 未实现 probe")
+        raise not_implemented(f"{self.component_id} does not implement probe")
 
     def install_plan(self) -> dict[str, Any]:
         return {
             "component_id": self.component_id,
             "installable_from_ui": False,
-            "note": "本客户端不会在运行期自动安装系统软件包；请通过受控镜像或发行版包管理器安装",
+            "note": "This client never installs system packages automatically at runtime; install through a controlled image or the distribution package manager",
         }
 
     def start(self) -> ProbeResult:
-        raise not_implemented(f"{self.component_id} 不支持启动操作")
+        raise not_implemented(f"{self.component_id} does not support start")
 
     def stop(self) -> ProbeResult:
-        raise not_implemented(f"{self.component_id} 不支持停止操作")
+        raise not_implemented(f"{self.component_id} does not support stop")
 
     def health(self) -> ProbeResult:
         return self.probe()
 
     def configure(self, config: dict[str, Any]) -> None:
-        raise not_implemented(f"{self.component_id} 不支持配置操作")
+        raise not_implemented(f"{self.component_id} does not support configuration")
 
     def run_task(self, task: dict[str, Any], context: TaskContext) -> ScanOutcome:
-        raise not_implemented(f"{self.component_id} 不支持任务执行")
+        raise not_implemented(f"{self.component_id} does not support task execution")
 
     def update(self) -> dict[str, Any]:
-        raise not_implemented(f"{self.component_id} 不支持更新操作")
+        raise not_implemented(f"{self.component_id} does not support update")
 
     def collect_events(self, cursor: str | None = None) -> list[dict[str, Any]]:
         return []

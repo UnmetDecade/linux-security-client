@@ -74,6 +74,18 @@ code, pre { font-family: var(--mono); font-size: 12.5px; }
 .login-hint { color: var(--text-3); font-size: 12px; margin: 16px 0 0; }
 .login-hint code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); }
 .form-error { color: var(--danger); background: var(--danger-soft); border: 1px solid #fecdca; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 12px; }
+.login-lang { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* ---------------------------------------------------------- language switch */
+.lang-switch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; user-select: none; }
+.lang-switch .lang-option {
+  border: 0; background: none; color: var(--text-3); font: inherit; font-size: 12px;
+  cursor: pointer; padding: 2px 4px; border-radius: 4px;
+}
+.lang-switch .lang-option:hover { color: var(--accent); background: var(--accent-soft); }
+.lang-switch .lang-option.active { color: var(--accent); font-weight: 600; cursor: default; }
+.lang-switch .lang-option.active:hover { background: none; }
+.lang-sep { color: var(--border-strong); }
 
 /* ------------------------------------------------------------------ app */
 .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
@@ -112,7 +124,7 @@ code, pre { font-family: var(--mono); font-size: 12.5px; }
 }
 .topbar h1 { margin: 0 0 2px; font-size: 22px; letter-spacing: -.02em; }
 .topbar p { margin: 0; color: var(--text-3); font-size: 13px; }
-.topbar-right { padding-top: 2px; }
+.topbar-right { padding-top: 2px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .content { padding: 0 32px 32px; flex: 1; }
 .foot { color: var(--text-3); font-size: 12px; padding: 0 32px 22px; }
 

@@ -235,7 +235,7 @@ class ContainerServiceTests(unittest.TestCase):
         snapshot = service.refresh()
         self.assertEqual(snapshot["state"], "permission_denied")
         self.assertEqual(snapshot["containers"], [])
-        self.assertIn("权限", snapshot["note"])
+        self.assertIn("access denied", snapshot["note"])
 
 
 if __name__ == "__main__":

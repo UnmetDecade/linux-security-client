@@ -52,39 +52,39 @@ class DoctorService:
         checks.append(
             _check(
                 "config",
-                "配置文件",
+                "Configuration file",
                 "ok" if self.config.config_loaded else "info",
-                f"已加载 {self.config.config_path}"
+                f"loaded {self.config.config_path}"
                 if self.config.config_loaded
-                else f"未找到 {self.config.config_path}，正在使用内置默认配置",
+                else f"{self.config.config_path} not found; using the built-in default configuration",
             )
         )
 
         data_mode = _mode(str(self.config.data_dir))
         if data_mode is None:
             checks.append(
-                _check("data_dir", "数据目录", "fail", "数据目录不可访问", "检查挂载与权限")
+                _check("data_dir", "Data directory", "fail", "the data directory is not accessible", "check mounts and permissions")
             )
         elif data_mode & 0o007:
             checks.append(
                 _check(
                     "data_dir",
-                    "数据目录权限",
+                    "Data directory permissions",
                     "warn",
-                    f"数据目录权限为 {oct(data_mode)}，其他用户可访问",
-                    "将数据目录权限收紧为 0700/0750",
+                    f"data directory permissions are {oct(data_mode)}; other users can access it",
+                    "tighten data directory permissions to 0700/0750",
                 )
             )
         else:
             checks.append(
-                _check("data_dir", "数据目录权限", "ok", f"权限 {oct(data_mode)}")
+                _check("data_dir", "Data directory permissions", "ok", f"permissions {oct(data_mode)}")
             )
 
         secrets = self.config.secrets_dir
         secret_files = list(secrets.glob("*.token")) if secrets.exists() else []
         if not secret_files:
             checks.append(
-                _check("secrets", "访问令牌", "warn", "未找到令牌文件", "重启守护进程以生成令牌")
+                _check("secrets", "Access tokens", "warn", "no token files found", "restart the daemon to generate tokens")
             )
         else:
             bad = []
@@ -95,10 +95,10 @@ class DoctorService:
             checks.append(
                 _check(
                     "secrets",
-                    "访问令牌权限",
+                    "Access token permissions",
                     "fail" if bad else "ok",
-                    "以下令牌权限过宽: " + ", ".join(bad) if bad else "令牌文件仅所有者可读",
-                    "chmod 600 数据目录/secrets/*.token" if bad else None,
+                    "the following tokens have overly broad permissions: " + ", ".join(bad) if bad else "token files are readable only by their owner",
+                    "chmod 600 <data dir>/secrets/*.token" if bad else None,
                 )
             )
 
@@ -106,10 +106,10 @@ class DoctorService:
         checks.append(
             _check(
                 "database",
-                "SQLite 完整性",
+                "SQLite integrity",
                 "ok" if ok else "fail",
                 detail,
-                "从备份恢复数据库" if not ok else None,
+                "restore the database from a backup" if not ok else None,
             )
         )
         try:
@@ -118,41 +118,41 @@ class DoctorService:
             checks.append(
                 _check(
                     "disk",
-                    "磁盘空间",
+                    "Disk space",
                     "warn" if free_gb < 1 else "ok",
-                    f"数据分区剩余 {free_gb:.1f} GB",
-                    "清理证据库、隔离区或日志" if free_gb < 1 else None,
+                    f"data partition has {free_gb:.1f} GB free",
+                    "clean up the evidence store, quarantine or logs" if free_gb < 1 else None,
                 )
             )
         except OSError as exc:
-            checks.append(_check("disk", "磁盘空间", "warn", f"无法读取磁盘空间: {exc}"))
+            checks.append(_check("disk", "Disk space", "warn", f"cannot read disk space: {exc}"))
 
         if probe_components:
             try:
                 self.components.probe_all()
             except Exception as exc:  # pragma: no cover
-                checks.append(_check("components", "组件探测", "fail", f"探测失败: {exc}"))
+                checks.append(_check("components", "Component probing", "fail", f"probe failed: {exc}"))
         clamav = component_store.get_component(self.db, "clamav")
         if not clamav:
-            checks.append(_check("clamav", "ClamAV", "warn", "没有 ClamAV 状态记录"))
+            checks.append(_check("clamav", "ClamAV", "warn", "no ClamAV status record"))
         elif not clamav["installed"]:
             checks.append(
                 _check(
                     "clamav",
-                    "ClamAV 安装",
+                    "ClamAV installation",
                     "fail",
-                    "未安装 ClamAV，病毒扫描不可用",
-                    "使用包含 ClamAV 的官方镜像重新部署",
+                    "ClamAV is not installed; virus scanning is unavailable",
+                    "redeploy with the official image that includes ClamAV",
                 )
             )
         elif clamav["service_status"] != "running":
             checks.append(
                 _check(
                     "clamav",
-                    "ClamAV 服务",
+                    "ClamAV service",
                     "fail",
-                    "clamd 未运行",
-                    "在组件管理中启动 ClamAV，或检查 clamd 日志",
+                    "clamd is not running",
+                    "start ClamAV in component management, or check the clamd logs",
                 )
             )
         else:
@@ -161,10 +161,10 @@ class DoctorService:
                 checks.append(
                     _check(
                         "clamav_db",
-                        "病毒库",
+                        "Virus database",
                         "fail",
-                        "未找到病毒库文件",
-                        "执行病毒库更新（freshclam）",
+                        "no virus database file found",
+                        "run a virus database update (freshclam)",
                     )
                 )
             else:
@@ -172,11 +172,11 @@ class DoctorService:
                 checks.append(
                     _check(
                         "clamav_db",
-                        "病毒库",
+                        "Virus database",
                         health,
                         clamav.get("error_message")
-                        or f"更新于 {db_info.get('updated_at')}，约 {db_info.get('age_hours')} 小时前",
-                        "执行病毒库更新" if health != "ok" else None,
+                        or f"updated at {db_info.get('updated_at')}, about {db_info.get('age_hours')} hours ago",
+                        "run a virus database update" if health != "ok" else None,
                     )
                 )
 
@@ -184,9 +184,9 @@ class DoctorService:
             checks.append(
                 _check(
                     "yara",
-                    "YARA 规则扫描",
+                    "YARA rule scanning",
                     "info",
-                    "已在配置中禁用",
+                    "disabled in the configuration",
                 )
             )
         else:
@@ -195,10 +195,10 @@ class DoctorService:
                 checks.append(
                     _check(
                         "yara",
-                        "YARA 安装",
+                        "YARA installation",
                         "fail",
-                        "未安装 YARA，规则扫描不可用",
-                        "通过发行版官方仓库安装 yara 与 openssl",
+                        "YARA is not installed; rule scanning is unavailable",
+                        "install yara and openssl from the distribution's official repositories",
                     )
                 )
             else:
@@ -208,28 +208,28 @@ class DoctorService:
                 notes: list[str] = []
                 if active_count <= 0:
                     status = "warn"
-                    notes.append("没有已激活的规则包，规则扫描不可用")
+                    notes.append("no active rule packs; rule scanning is unavailable")
                 elif yara.get("health_status") == "ok":
                     status = "ok"
-                    notes.append(f"已激活 {active_count} 个规则包")
+                    notes.append(f"{active_count} rule packs active")
                 else:
                     status = "warn"
                     notes.append(
-                        yara.get("error_message") or "YARA 健康状态异常"
+                        yara.get("error_message") or "YARA health status is abnormal"
                     )
                 if self.config.yara.require_signature and not signature.get(
                     "public_key_present"
                 ):
                     if status == "ok":
                         status = "warn"
-                    notes.append("签名强制已启用但可信公钥缺失，新规则包无法安装")
+                    notes.append("signature enforcement is enabled but the trusted public key is missing; new rule packs cannot be installed")
                 checks.append(
                     _check(
                         "yara",
-                        "YARA 规则扫描",
+                        "YARA rule scanning",
                         status,
-                        "；".join(notes)[:300],
-                        "安装并激活经过签名校验的规则包"
+                        "; ".join(notes)[:300],
+                        "install and activate a signature-verified rule pack"
                         if status != "ok"
                         else None,
                     )
@@ -239,9 +239,9 @@ class DoctorService:
             checks.append(
                 _check(
                     "wazuh",
-                    "Wazuh Agent（可选）",
+                    "Wazuh Agent (optional)",
                     "info",
-                    "未启用；本客户端不会声称具备 Wazuh 管理端能力",
+                    "not enabled; this client does not claim Wazuh manager capability",
                 )
             )
         else:
@@ -250,20 +250,20 @@ class DoctorService:
                 checks.append(
                     _check(
                         "wazuh",
-                        "Wazuh Agent（可选）",
+                        "Wazuh Agent (optional)",
                         "warn",
-                        "已启用 Wazuh 集成，但未检测到本地 Agent；"
-                        "没有 Agent/Manager 时不提供 Wazuh 事件",
-                        "安装并注册 Wazuh Agent，或关闭 wazuh.enabled",
+                        "Wazuh integration is enabled, but no local Agent was detected; "
+                        "no Agent/Manager means no Wazuh events are provided",
+                        "install and register a Wazuh Agent, or disable wazuh.enabled",
                     )
                 )
             else:
                 checks.append(
                     _check(
                         "wazuh",
-                        "Wazuh Agent（可选）",
+                        "Wazuh Agent (optional)",
                         "warn" if wazuh.get("health_status") != "ok" else "ok",
-                        (wazuh.get("error_message") or wazuh.get("health_status") or "未知")[
+                        (wazuh.get("error_message") or wazuh.get("health_status") or "unknown")[
                             :300
                         ],
                     )
@@ -275,20 +275,20 @@ class DoctorService:
             checks.append(
                 _check(
                     "tls",
-                    "远程访问加密",
+                    "Remote access encryption",
                     "fail" if not self.config.server.allow_insecure_remote else "warn",
-                    "服务绑定到非回环地址且未启用 TLS",
-                    "启用 TLS 或改为 127.0.0.1 并前置反向代理",
+                    "the service is bound to a non-loopback address and TLS is not enabled",
+                    "enable TLS or bind to 127.0.0.1 behind a reverse proxy",
                 )
             )
         else:
             checks.append(
                 _check(
                     "tls",
-                    "监听地址",
+                    "Listening address",
                     "ok",
-                    f"监听 {self.config.server.bind}:{self.config.server.port}"
-                    + ("，已启用 TLS" if self.config.server.tls_cert else ""),
+                    f"listening on {self.config.server.bind}:{self.config.server.port}"
+                    + (", TLS enabled" if self.config.server.tls_cert else ""),
                 )
             )
 
@@ -296,10 +296,10 @@ class DoctorService:
         checks.append(
             _check(
                 "runtime",
-                "运行环境",
+                "Runtime environment",
                 "info",
-                f"内核 {info['kernel']}，容器运行: {info['container']['containerized']}，"
-                f"容器类型: {info['container']['runtime'] or '未知'}",
+                f"kernel {info['kernel']}, containerized: {info['container']['containerized']}, "
+                f"container runtime: {info['container']['runtime'] or 'unknown'}",
             )
         )
 
@@ -307,10 +307,10 @@ class DoctorService:
             checks.append(
                 _check(
                     "containers",
-                    "容器监控",
+                    "Container monitoring",
                     "info",
-                    "未启用；默认不向 Web 进程挂载 Docker Socket。"
-                    "启用时请使用只读 Docker API 代理",
+                    "not enabled; the Docker Socket is not mounted into the Web process by default. "
+                    "When enabling, use a read-only Docker API proxy",
                 )
             )
         elif self.containers:
@@ -321,12 +321,12 @@ class DoctorService:
                 checks.append(
                     _check(
                         "containers",
-                        "容器监控",
+                        "Container monitoring",
                         "warn" if state == "degraded" else "ok",
-                        f"{snapshot.get('note') or state}；"
-                        f"容器 {summary.get('total', 0)}，"
-                        f"风险 {summary.get('risky', 0)}",
-                        "检查 Docker API 代理与容器详情读取权限"
+                        f"{snapshot.get('note') or state}; "
+                        f"containers {summary.get('total', 0)}, "
+                        f"risks {summary.get('risky', 0)}",
+                        "check the Docker API proxy and container detail read permissions"
                         if state == "degraded"
                         else None,
                     )
@@ -335,10 +335,10 @@ class DoctorService:
                 checks.append(
                     _check(
                         "containers",
-                        "容器监控",
+                        "Container monitoring",
                         "warn" if state == "initializing" else "fail",
-                        snapshot.get("note") or f"状态 {state}",
-                        "检查 Docker API 代理、网络连通性与 Socket 权限",
+                        snapshot.get("note") or f"state {state}",
+                        "check the Docker API proxy, network connectivity and socket permissions",
                     )
                 )
 
@@ -347,14 +347,14 @@ class DoctorService:
             checks.append(
                 _check(
                     "falco",
-                    "Falco 运行时检测",
+                    "Falco runtime detection",
                     "info"
                     if falco.get("error_code") == "not_installed"
                     else "warn"
                     if falco.get("health_status") != "ok"
                     else "ok",
-                    (falco.get("error_message") or falco.get("health_status") or "未知")[:300],
-                    "查看 Falco 安装计划；若内核/eBPF 不支持，界面会明确提示"
+                    (falco.get("error_message") or falco.get("health_status") or "unknown")[:300],
+                    "view the Falco install plan; if the kernel/eBPF is unsupported, the UI says so explicitly"
                     if falco.get("error_code") not in {"integration_pending"}
                     else None,
                 )

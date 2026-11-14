@@ -21,7 +21,7 @@ class ComponentManager:
     def get_adapter(self, component_id: str) -> Adapter:
         adapter = self.adapters.get(component_id)
         if not adapter:
-            raise not_found(f"未知组件: {component_id}")
+            raise not_found(f"unknown component: {component_id}")
         return adapter
 
     def probe(self, component_id: str) -> dict[str, Any]:
@@ -35,7 +35,7 @@ class ComponentManager:
             try:
                 results.append(self.probe(component_id))
             except Exception as exc:  # a broken adapter must not take down the daemon
-                log.exception("组件探测失败 component=%s", component_id)
+                log.exception("component probe failed component=%s", component_id)
                 adapter = self.adapters[component_id]
                 failed = ProbeResult(
                     component_id=component_id,
@@ -43,7 +43,7 @@ class ComponentManager:
                     installed=False,
                     health_status="check_failed",
                     error_code="probe_failed",
-                    error_message=f"探测失败: {exc}",
+                    error_message=f"probe failed: {exc}",
                 )
                 results.append(component_store.upsert_component(self.db, failed.to_dict()))
         return results

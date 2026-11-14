@@ -98,7 +98,7 @@ class AdapterTests(unittest.TestCase):
         plan = FalcoAdapter(sys.executable).install_plan()
         self.assertFalse(plan["installable_from_ui"])
         self.assertGreaterEqual(len(plan["steps"]), 4)
-        self.assertTrue(any("不安装" in note for note in plan["notes"]))
+        self.assertTrue(any("does not install" in note for note in plan["notes"]))
 
 
 class TokenTests(unittest.TestCase):

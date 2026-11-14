@@ -63,7 +63,7 @@ def _regular_file(path: str) -> tuple[bool, int]:
 
 class WazuhAdapter(Adapter):
     component_id = "wazuh"
-    display_name = "Wazuh Agent（可选，仅本地）"
+    display_name = "Wazuh Agent (optional, local only)"
 
     def __init__(self, config: WazuhConfig) -> None:
         self.config = config
@@ -89,7 +89,7 @@ class WazuhAdapter(Adapter):
             return SERVICE_RUNNING, None
         if result.ok:
             return SERVICE_UNKNOWN, (text.strip()[:500] or None)
-        return SERVICE_UNKNOWN, (result.tail(500) or "无法读取 Agent 服务状态")
+        return SERVICE_UNKNOWN, (result.tail(500) or "cannot read Agent service status")
 
     def _manager_config(self) -> dict[str, Any]:
         conf_path = str(Path(self.config.install_dir) / "etc" / "ossec.conf")
@@ -147,8 +147,8 @@ class WazuhAdapter(Adapter):
             "connection_verified": False,
             "scope": "local_agent_only",
             "note": (
-                "仅读取本地 Wazuh Agent 状态与本地告警文件；"
-                "lsec 不是 Wazuh Manager，不验证也不声称 Manager 连接能力"
+                "Reads only the local Wazuh Agent status and local alert files; "
+                "lsec is not a Wazuh Manager and neither verifies nor claims Manager connectivity"
             ),
             "checked_at": now_iso(),
         }
@@ -163,7 +163,7 @@ class WazuhAdapter(Adapter):
                 health_status=HEALTH_UNAVAILABLE,
                 capabilities=[],
                 error_code="disabled",
-                error_message="Wazuh 集成为可选项，已在配置中禁用",
+                error_message="Wazuh integration is optional and is disabled in configuration",
                 details=details,
             )
 
@@ -177,8 +177,8 @@ class WazuhAdapter(Adapter):
                 capabilities=[],
                 error_code="not_installed",
                 error_message=(
-                    "未检测到本地 Wazuh Agent；lsec 不提供 Wazuh Manager 功能，"
-                    "也不会自动安装 Agent"
+                    "No local Wazuh Agent detected; lsec does not provide Wazuh Manager functionality "
+                    "and does not install the Agent automatically"
                 ),
                 details=details,
             )
@@ -193,7 +193,7 @@ class WazuhAdapter(Adapter):
                 health_status=HEALTH_DEGRADED,
                 capabilities=[],
                 error_code="config_missing",
-                error_message="已检测到 Wazuh Agent，但未找到本地 ossec.conf，无法确认注册配置",
+                error_message="Wazuh Agent detected, but the local ossec.conf was not found; registration configuration cannot be confirmed",
                 details=details,
             )
 
@@ -207,7 +207,7 @@ class WazuhAdapter(Adapter):
                 health_status=HEALTH_DEGRADED,
                 capabilities=[],
                 error_code="manager_not_configured",
-                error_message="本地 Agent 未配置 Manager 地址；不会产生可用的 Wazuh 告警",
+                error_message="The local Agent has no Manager address configured; no usable Wazuh alerts will be produced",
                 details=details,
             )
 
@@ -221,7 +221,7 @@ class WazuhAdapter(Adapter):
                 health_status=HEALTH_DEGRADED,
                 capabilities=[],
                 error_code="agent_not_running",
-                error_message="Wazuh Agent 已配置但服务未运行；不会产生新的本地告警",
+                error_message="Wazuh Agent is configured but the service is not running; no new local alerts will be produced",
                 details=details,
             )
 
@@ -238,8 +238,8 @@ class WazuhAdapter(Adapter):
             capabilities=capabilities,
             error_code="manager_connection_unverified",
             error_message=(
-                "本地 Wazuh Agent 已安装；本客户端无法验证其 Manager 连接状态，"
-                "只提供本地状态与可选告警接入，不声称完整 Wazuh 能力"
+                "A local Wazuh Agent is installed; this client cannot verify its Manager connection state "
+                "and provides only local status plus optional alert ingestion, without claiming full Wazuh capability"
             ),
             details=details,
         )
@@ -248,18 +248,18 @@ class WazuhAdapter(Adapter):
         return {
             "component_id": self.component_id,
             "installable_from_ui": False,
-            "package_source": "Wazuh 官方仓库（由管理员在宿主机安装并注册 Agent）",
-            "privileges": "安装与注册需要宿主机 root；lsec 不会自动执行",
-            "dependencies": ["wazuh-agent", "由管理员提供的 Manager 地址与注册密钥"],
+            "package_source": "official Wazuh repository (an administrator installs and registers the Agent on the host)",
+            "privileges": "installation and registration require host root; lsec never performs them automatically",
+            "dependencies": ["wazuh-agent", "Manager address and registration key provided by an administrator"],
             "steps": [
-                "在宿主机按 Wazuh 官方文档安装 Agent",
-                "向管理员获取注册信息并使用 agent-auth 注册；密钥不得写入 lsec 日志",
-                "确认 wazuh-control status 显示 Agent 运行且 Manager 连接正常",
-                "如需本地告警接入，将 alerts.json 路径和 ingest_enabled 写入配置",
+                "Install the Agent on the host following the official Wazuh documentation",
+                "Obtain registration information from an administrator and register with agent-auth; keys must never be written to lsec logs",
+                "Confirm wazuh-control status shows the Agent running and connected to the Manager",
+                "For local alert ingestion, set the alerts.json path and ingest_enabled in the configuration",
             ],
             "notes": [
-                "lsec 不是 Wazuh Manager，不管理其他 Agent，也不提供 Manager API",
-                "只读取本地 alerts.json 的新增行，默认从文件末尾开始，不导入历史告警",
-                "告警不会触发自动隔离、删除或容器操作",
+                "lsec is not a Wazuh Manager, does not manage other Agents, and does not provide a Manager API",
+                "Reads only new lines from the local alerts.json, starting at the end of the file by default; historical alerts are not imported",
+                "Alerts never trigger automatic quarantine, deletion, or container operations",
             ],
         }

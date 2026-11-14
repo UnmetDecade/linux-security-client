@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>lsec 统一安全防护</title>
+  <title data-i18n="app.title">lsec Unified Security Protection</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='20' font-weight='700' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -13,14 +13,21 @@
       <div class="login-brand">
         <span class="brand-mark" aria-hidden="true">L</span>
         <div>
-          <h1>lsec 统一安全防护</h1>
-          <p>Linux 桌面 / 服务器 / 容器主机</p>
+          <h1 data-i18n="app.loginTitle">lsec Unified Security Protection</h1>
+          <p data-i18n="app.loginSubtitle">Linux desktop / server / container host</p>
         </div>
       </div>
-      <label for="token">访问令牌</label>
-      <input id="token" name="token" type="password" placeholder="输入管理员或只读令牌" autocomplete="off" required>
-      <button type="submit" class="btn primary block">登录</button>
-      <p class="login-hint">令牌位于数据卷的 <code>secrets/admin.token</code>。本页面不会把令牌保存到浏览器存储。</p>
+      <label for="token" data-i18n="login.tokenLabel">Access token</label>
+      <input id="token" name="token" type="password" placeholder="Enter an admin or read-only token" data-i18n-attr="placeholder:login.tokenPlaceholder" autocomplete="off" required>
+      <button type="submit" class="btn primary block" data-i18n="login.signIn">Sign in</button>
+      <p class="login-hint"><span data-i18n="login.hintPrefix">The token is in the data volume at</span> <code>secrets/admin.token</code>. <span data-i18n="login.hintSuffix">This page does not save the token in browser storage.</span></p>
+      <div class="login-lang">
+        <div class="lang-switch" id="lang-switch-login" role="group" data-i18n-attr="aria-label:lang.label">
+          <button type="button" class="lang-option" data-lang="en" data-i18n="lang.en">EN</button>
+          <span class="lang-sep" aria-hidden="true">|</span>
+          <button type="button" class="lang-option" data-lang="zh" data-i18n="lang.zh">&#20013;&#25991;</button>
+        </div>
+      </div>
       <p id="login-error" class="form-error hidden"></p>
     </form>
   </div>
@@ -31,81 +38,86 @@
         <span class="brand-mark" aria-hidden="true">L</span>
         <div class="brand-text">
           <strong>lsec</strong>
-          <span>安全防护</span>
+          <span data-i18n="app.tagline">Security</span>
         </div>
       </div>
-      <nav id="nav" aria-label="主导航">
+      <nav id="nav" aria-label="Main navigation" data-i18n-attr="aria-label:nav.main">
         <button class="nav-item" data-page="dashboard">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
-          <span>安全概览</span>
+          <span data-i18n="nav.dashboard">Overview</span>
         </button>
         <button class="nav-item" data-page="scan">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3a8 8 0 1 0 4.9 14.3l4 4 1.4-1.4-4-4A8 8 0 0 0 11 3Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></svg>
-          <span>病毒查杀</span>
+          <span data-i18n="nav.scan">Scan</span>
         </button>
         <button class="nav-item" data-page="yara">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v3H5V3Zm0 5h14v3H5V8Zm0 5h8v3H5v-3Zm0 5h8v3H5v-3Zm11-4 5 3-5 3v-6Z"/></svg>
-          <span>规则检测</span>
+          <span data-i18n="nav.yara">YARA</span>
         </button>
         <button class="nav-item" data-page="host">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 9.1 8 10 4.6-.9 8-5 8-10V6l-8-4Zm0 4.2 6 3V12c0 3.6-2.3 6.7-6 7.7-3.7-1-6-4.1-6-7.7V9.2l6-3Z"/></svg>
-          <span>主机防护</span>
+          <span data-i18n="nav.host">Host</span>
         </button>
         <button class="nav-item" data-page="containers">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v2H3V7Zm2 4h4v6H5v-6Zm5 0h4v6h-4v-6Zm5 0h4v6h-4v-6ZM3 19h18v2H3v-2Z"/></svg>
-          <span>容器防护</span>
+          <span data-i18n="nav.containers">Containers</span>
         </button>
         <button class="nav-item" data-page="audit">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm2 2v16h10V8h-4V4H8Zm2 6h6v2h-6v-2Zm0 4h6v2h-6v-2Z"/></svg>
-          <span>安全体检</span>
+          <span data-i18n="nav.audit">Audit</span>
         </button>
         <button class="nav-item" data-page="events">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22L12 2Zm0 4 7.5 13h-15L12 6Zm-1 4v4h2v-4h-2Zm0 5v2h2v-2h-2Z"/></svg>
-          <span>安全事件</span>
+          <span data-i18n="nav.events">Events</span>
         </button>
         <button class="nav-item" data-page="quarantine">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 2h8v2H8V8Zm0 4h8v2H8v-2Z"/></svg>
-          <span>隔离区</span>
+          <span data-i18n="nav.quarantine">Quarantine</span>
         </button>
         <button class="nav-item" data-page="components">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
-          <span>组件管理</span>
+          <span data-i18n="nav.components">Components</span>
         </button>
         <button class="nav-item" data-page="policy">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v10H4V10a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v2h4V6a2 2 0 0 0-2-2Zm0 9a2 2 0 0 0-1 3.7V19h2v-2.3A2 2 0 0 0 12 13Z"/></svg>
-          <span>防护策略</span>
+          <span data-i18n="nav.policy">Policy</span>
         </button>
         <button class="nav-item" data-page="settings">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.9 4c0-.5-.1-1-.2-1.5l2-1.5-2-3.4-2.3 1a8 8 0 0 0-2.6-1.5L15.5 3h-4l-.3 2.1a8 8 0 0 0-2.6 1.5l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 3l-2 1.5 2 3.4 2.3-1a8 8 0 0 0 2.6 1.5l.3 2.1h4l.3-2.1a8 8 0 0 0 2.6-1.5l2.3 1 2-3.4-2-1.5c.1-.5.2-1 .2-1.5Z"/></svg>
-          <span>设置与日志</span>
+          <span data-i18n="nav.settings">Settings</span>
         </button>
       </nav>
       <div class="sidebar-foot">
         <span id="role-badge" class="role-badge">-</span>
-        <button id="logout" class="link-btn">退出登录</button>
+        <button id="logout" class="link-btn" data-i18n="nav.logout">Sign out</button>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <h1 id="page-title">安全概览</h1>
-          <p id="page-sub">正在读取守护进程状态…</p>
+          <h1 id="page-title" data-i18n="page.dashboard.title">Overview</h1>
+          <p id="page-sub" data-i18n="app.pageLoadingSub">Reading daemon status...</p>
         </div>
         <div class="topbar-right">
-          <span id="overall-pill" class="pill neutral">状态加载中</span>
+          <div class="lang-switch" id="lang-switch-app" role="group" data-i18n-attr="aria-label:lang.label">
+            <button type="button" class="lang-option" data-lang="en" data-i18n="lang.en">EN</button>
+            <span class="lang-sep" aria-hidden="true">|</span>
+            <button type="button" class="lang-option" data-lang="zh" data-i18n="lang.zh">&#20013;&#25991;</button>
+          </div>
+          <span id="overall-pill" class="pill neutral" data-i18n="app.pillLoading">Loading status</span>
         </div>
       </header>
       <div id="content" class="content"></div>
-      <footer class="foot">lsec · 本地优先 · 所有状态来自本机守护进程真实数据</footer>
+      <footer class="foot" data-i18n="app.footer">lsec · Local-first · all state comes from real data reported by the on-host daemon</footer>
     </main>
   </div>
 
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
       <header class="modal-head">
-        <h2 id="modal-title">确认</h2>
-        <button id="modal-close" class="icon-btn" aria-label="关闭">×</button>
+        <h2 id="modal-title" data-i18n="modal.confirm">Confirm</h2>
+        <button id="modal-close" class="icon-btn" aria-label="Close" data-i18n-attr="aria-label:modal.close">×</button>
       </header>
       <div id="modal-body" class="modal-body"></div>
       <footer id="modal-foot" class="modal-foot"></footer>
@@ -113,6 +125,7 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status"></div>
+  <script src="/assets/i18n.js"></script>
   <script src="/assets/app.js"></script>
 </body>
 </html>

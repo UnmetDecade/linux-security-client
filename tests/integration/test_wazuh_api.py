@@ -166,7 +166,7 @@ class WazuhApiTests(unittest.TestCase):
         wazuh = payload["wazuh"]
         self.assertEqual(wazuh["scope"], "local_agent_only")
         self.assertFalse(wazuh["connection_verified"])
-        self.assertIn("不是 Wazuh Manager", wazuh["note"])
+        self.assertIn("not a Wazuh Manager", wazuh["note"])
         self.assertEqual(wazuh["component"]["version"], "4.7.0")
         self.assertEqual(wazuh["component"]["service_status"], "running")
         self.assertTrue(wazuh["component"]["details"]["registration_present"])
@@ -191,7 +191,7 @@ class WazuhApiTests(unittest.TestCase):
             self.assertEqual(status, 200, payload)
             plan = payload["plan"]
             self.assertFalse(plan["installable_from_ui"])
-            self.assertTrue(any("不是 Wazuh Manager" in note for note in plan["notes"]))
+            self.assertTrue(any("not a Wazuh Manager" in note for note in plan["notes"]))
 
     def test_alert_ingestion_creates_unified_event(self) -> None:
         self.ingester.tick()  # initialize at current EOF
@@ -211,7 +211,7 @@ class WazuhApiTests(unittest.TestCase):
         self.assertFalse(
             event["source_refs"][0]["manager_connection_verified"]
         )
-        self.assertIn("不是 Wazuh Manager", event["description"])
+        self.assertIn("not a Wazuh Manager", event["description"])
 
         # No automatic quarantine/delete action is recorded.
         status, qpayload, _ = self.admin.json("GET", "/api/v1/quarantine")

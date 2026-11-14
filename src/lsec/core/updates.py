@@ -62,25 +62,25 @@ class UpdateManager:
         try:
             self.components.probe("clamav")
         except Exception:
-            log.exception("更新前探测 ClamAV 失败")
+            log.exception("failed to probe ClamAV before the update")
         if not self._due():
             return
         try:
             self.run_update(actor="system", request_id=None, client=None)
         except LsecError as exc:
-            log.warning("自动更新病毒库失败: %s", exc.message)
+            log.warning("automatic signature database update failed: %s", exc.message)
         except Exception:
-            log.exception("自动更新病毒库异常")
+            log.exception("automatic signature database update error")
 
     def run_update(
         self, *, actor: str, request_id: str | None, client: str | None
     ) -> dict[str, Any]:
         if not self.config.clamav.freshclam_enabled:
-            raise conflict("病毒库自动更新已禁用")
+            raise conflict("automatic signature database updates are disabled")
         if not self._lock.acquire(blocking=False):
-            raise conflict("已有病毒库更新正在执行")
+            raise conflict("a signature database update is already running")
         try:
-            log.info("开始更新病毒库")
+            log.info("starting signature database update")
             outcome = self.components.update("clamav")
             try:
                 probe = self.components.probe("clamav")
@@ -89,13 +89,13 @@ class UpdateManager:
                     and self.config.clamav.auto_start
                     and probe.get("service_status") != "running"
                 ):
-                    log.info("病毒库就绪，按配置启动 ClamAV")
+                    log.info("signature database ready; starting ClamAV per configuration")
                     self.components.start("clamav")
             except Exception:
-                log.exception("更新后探测/启动 ClamAV 失败")
+                log.exception("failed to probe/start ClamAV after the update")
             verification = outcome.get("signature_verification") or {}
             if verification.get("checked") and not verification.get("ok"):
-                log.warning("病毒库更新后数字签名校验未通过")
+                log.warning("signature verification failed after the signature database update")
             audit_store.record(
                 self.db,
                 action="component.update",
@@ -128,7 +128,7 @@ class UpdateManager:
                     error=str(exc)[:1000],
                 )
             except Exception:
-                log.exception("写入更新审计失败")
+                log.exception("failed to write update audit record")
             raise
         finally:
             self._lock.release()

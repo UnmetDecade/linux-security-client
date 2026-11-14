@@ -47,9 +47,9 @@ class StatusService:
         container_status = self._containers(by_id.get("docker"))
         reasons: list[str] = []
         if open_counts["critical"]:
-            reasons.append(f"存在 {open_counts['critical']} 个未处理的严重事件")
+            reasons.append(f"{open_counts['critical']} unhandled critical events")
         if open_counts["high"]:
-            reasons.append(f"存在 {open_counts['high']} 个未处理的高危事件")
+            reasons.append(f"{open_counts['high']} unhandled high-severity events")
         if protection["on_demand"]["state"] != "ready":
             reasons.append(protection["on_demand"]["reason"])
         if protection["real_time"]["state"] != "active":
@@ -57,7 +57,7 @@ class StatusService:
         if host_baseline["state"] == "failed":
             reasons.append(
                 host_baseline.get("last_audit", {}).get("error")
-                or "最近一次主机体检执行失败"
+                or "the most recent host audit failed"
             )
         container_unavailable = bool(
             self.config.containers.enabled
@@ -65,10 +65,10 @@ class StatusService:
             in {"initializing", "degraded", "unavailable", "permission_denied"}
         )
         if container_unavailable:
-            reasons.append(f"容器监控不可用：{container_status['note']}")
+            reasons.append(f"container monitoring unavailable: {container_status['note']}")
         elif container_status.get("risky"):
             reasons.append(
-                f"已发现 {container_status['risky']} 个存在配置风险的容器"
+                f"{container_status['risky']} containers with configuration risks detected"
             )
 
         if open_counts["critical"] or open_counts["high"]:
@@ -83,16 +83,16 @@ class StatusService:
             overall = "healthy"
 
         labels = {
-            "healthy": "防护正常",
-            "at_risk": "存在风险",
-            "protection_incomplete": "防护不完整",
+            "healthy": "Protection healthy",
+            "at_risk": "At risk",
+            "protection_incomplete": "Protection incomplete",
         }
         if overall == "healthy":
-            summary = "按需扫描与实时防护均处于正常状态。"
+            summary = "On-demand scanning and real-time protection are both in a healthy state."
         elif overall == "at_risk":
-            summary = "发现未处理的高风险事件，请前往安全事件中心核实。"
+            summary = "Unhandled high-risk events were found; review them in the security event center."
         else:
-            summary = "部分防护能力不可用或不完整，下方列出的原因需要处理。"
+            summary = "Some protection capabilities are unavailable or incomplete; the reasons listed below need attention."
 
         return {
             "overall": overall,
@@ -131,7 +131,7 @@ class StatusService:
         if not self.containers:
             return {
                 "state": "disabled",
-                "note": "容器监控未启用",
+                "note": "container monitoring is not enabled",
                 "enabled": False,
                 "runtime": runtime,
                 "total": 0,
@@ -169,7 +169,7 @@ class StatusService:
                 "state": "disabled",
                 "enabled": False,
                 "installed": bool(component and component.get("installed")),
-                "note": "YARA 规则扫描已在配置中禁用",
+                "note": "YARA rule scanning is disabled in the configuration",
                 "packs_count": 0,
                 "active_count": 0,
                 "active": [],
@@ -181,19 +181,19 @@ class StatusService:
         active_count = int(details.get("active_count") or 0)
         if not component:
             state = "unknown"
-            note = "尚未探测到 YARA 组件状态"
+            note = "YARA component status has not been probed yet"
         elif not component.get("installed"):
             state = "unavailable"
-            note = "YARA 未安装，规则扫描不可用"
+            note = "YARA is not installed; rule scanning is unavailable"
         elif active_count <= 0:
             state = "unavailable"
-            note = "YARA 已安装，但没有已激活的规则包；不能视为正在检测"
+            note = "YARA is installed but there are no active rule packs; it cannot be considered actively detecting"
         elif component.get("health_status") != "ok":
             state = "degraded"
-            note = component.get("error_message") or "YARA 状态异常"
+            note = component.get("error_message") or "YARA status is abnormal"
         else:
             state = "ready"
-            note = f"已激活 {active_count} 个规则包；规则命中不等同于已确认恶意软件"
+            note = f"{active_count} rule packs active; a rule match is not equivalent to confirmed malware"
         signature = details.get("signature") or {}
         return {
             "state": state,
@@ -215,7 +215,7 @@ class StatusService:
         if not latest:
             return {
                 "state": "not_run",
-                "note": "尚未运行主机安全体检；当前没有主机基线结论",
+                "note": "host security audit has not run yet; there is no host baseline conclusion",
                 "last_audit": None,
             }
         last = {
@@ -235,7 +235,7 @@ class StatusService:
         }
         if latest.get("status") == "failed":
             state = "failed"
-            note = latest.get("error") or "最近一次主机体检执行失败"
+            note = latest.get("error") or "the most recent host audit failed"
         else:
             state = "current"
             finished = latest.get("finished_at")
@@ -248,13 +248,13 @@ class StatusService:
                     state = "stale"
             findings = latest.get("findings_count", 0)
             errors = latest.get("errors_count", 0)
-            note = f"最近体检发现 {findings} 项风险"
+            note = f"the most recent audit found {findings} risks"
             if errors:
-                note += f"，{errors} 项检查未能执行"
+                note += f", {errors} checks could not run"
             if latest.get("hardening_index") is not None:
-                note += f"，Lynis 加固指数 {latest['hardening_index']}"
+                note += f", Lynis hardening index {latest['hardening_index']}"
             if state == "stale":
-                note += "；结果已超过时效，建议重新运行"
+                note += "; the result is older than the freshness threshold; consider running it again"
         return {"state": state, "note": note, "last_audit": last}
 
     def _setting(self, key: str, default: Any) -> Any:
@@ -267,11 +267,11 @@ class StatusService:
             return {
                 "on_demand": {
                     "state": "unavailable",
-                    "reason": "未探测到 ClamAV 组件状态",
+                    "reason": "ClamAV component status has not been probed",
                 },
                 "real_time": {
                     "state": "unsupported",
-                    "reason": "未探测到 ClamAV，实时防护不可用",
+                    "reason": "ClamAV has not been probed; real-time protection is unavailable",
                 },
                 "virus_database": {
                     "state": "unknown",
@@ -284,7 +284,7 @@ class StatusService:
         real_time = details.get("real_time_protection") or {
             "supported": False,
             "state": "unsupported",
-            "reason": "未提供实时防护能力",
+            "reason": "no real-time protection capability provided",
         }
         db_state = "unknown"
         if not database.get("present"):
@@ -297,23 +297,23 @@ class StatusService:
         if not clamav.get("installed"):
             on_demand = {
                 "state": "unavailable",
-                "reason": "ClamAV 未安装，无法执行病毒扫描",
+                "reason": "ClamAV is not installed; virus scanning cannot run",
             }
         elif clamav.get("service_status") != "running":
             on_demand = {
                 "state": "stopped",
-                "reason": "ClamAV 已安装但 clamd 未运行，按需扫描不可用",
+                "reason": "ClamAV is installed but clamd is not running; on-demand scanning is unavailable",
             }
         elif db_state in {"missing", "outdated"}:
             on_demand = {
                 "state": "degraded",
                 "reason": clamav.get("error_message")
-                or "病毒库缺失或过期，扫描结果不可信",
+                or "the virus database is missing or outdated; scan results are not trustworthy",
             }
         else:
             on_demand = {
                 "state": "ready",
-                "reason": "ClamAV 按需扫描可用",
+                "reason": "ClamAV on-demand scanning is available",
             }
 
         return {
@@ -321,7 +321,7 @@ class StatusService:
             "real_time": {
                 "state": real_time.get("state", "unsupported"),
                 "supported": bool(real_time.get("supported")),
-                "reason": real_time.get("reason", "实时防护未启用"),
+                "reason": real_time.get("reason", "real-time protection is not enabled"),
             },
             "virus_database": {
                 "state": db_state,

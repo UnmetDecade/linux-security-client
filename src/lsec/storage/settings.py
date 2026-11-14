@@ -49,7 +49,7 @@ def get(db: Database, key: str, default: Any = None) -> Any:
 
 def set_value(db: Database, key: str, value: Any) -> None:
     if key not in SETTING_KEYS:
-        raise invalid(f"未知设置项: {key}")
+        raise invalid(f"unknown setting: {key}")
     with db.write() as conn:
         conn.execute(
             "INSERT INTO settings (key, value, updated_at) VALUES (?,?,?) "
@@ -62,27 +62,27 @@ def validate_settings(patch: dict[str, Any]) -> dict[str, Any]:
     clean: dict[str, Any] = {}
     for key, value in patch.items():
         if key not in SETTING_KEYS:
-            raise invalid(f"未知设置项: {key}")
+            raise invalid(f"unknown setting: {key}")
         if key == "response_mode":
             if value not in {"alert", "suggest", "auto"}:
-                raise invalid("response_mode 只能是 alert/suggest/auto")
+                raise invalid("response_mode must be one of alert/suggest/auto")
             clean[key] = value
         elif key == "auto_quarantine_enabled":
             if not isinstance(value, bool):
-                raise invalid("auto_quarantine_enabled 必须是布尔值")
+                raise invalid("auto_quarantine_enabled must be a boolean")
             clean[key] = value
         elif key == "scheduled_scan":
             if not isinstance(value, dict):
-                raise invalid("scheduled_scan 必须是对象")
+                raise invalid("scheduled_scan must be an object")
             enabled = value.get("enabled", False)
             scan_type = value.get("type", "quick")
             interval = value.get("interval_hours", 24)
             if not isinstance(enabled, bool):
-                raise invalid("scheduled_scan.enabled 必须是布尔值")
+                raise invalid("scheduled_scan.enabled must be a boolean")
             if scan_type not in {"quick", "full", "custom"}:
-                raise invalid("scheduled_scan.type 无效")
+                raise invalid("invalid scheduled_scan.type")
             if not isinstance(interval, int) or not 1 <= interval <= 720:
-                raise invalid("scheduled_scan.interval_hours 必须在 1-720 之间")
+                raise invalid("scheduled_scan.interval_hours must be between 1 and 720")
             clean[key] = {
                 "enabled": enabled,
                 "type": scan_type,

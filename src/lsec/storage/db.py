@@ -220,7 +220,7 @@ class Database:
                     (version, now_iso()),
                 )
                 conn.execute("COMMIT")
-                log.info("数据库迁移完成 version=%s", version)
+                log.info("database migration complete version=%s", version)
             except Exception:
                 try:
                     conn.execute("ROLLBACK")
@@ -229,7 +229,7 @@ class Database:
                 conn.close()
                 if backup:
                     shutil.copy2(backup, self.path)
-                    log.error("迁移失败，已从备份恢复: %s", backup)
+                    log.error("migration failed; restored from backup: %s", backup)
                 raise
             else:
                 conn.close()
@@ -249,7 +249,7 @@ class Database:
             os.chmod(backup, 0o600)
             return backup
         except sqlite3.Error as exc:  # pragma: no cover - disk errors
-            log.warning("创建迁移备份失败: %s", exc)
+            log.warning("failed to create migration backup: %s", exc)
             return None
 
     @contextmanager
