@@ -7,7 +7,7 @@
 # and it does NOT run ClamAV on-access (fanotify) protection. Optional container
 # monitoring reads the Docker API through the separate GET-only proxy image
 # (packaging/Dockerfile.proxy, docker-compose.container.yml).
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 # Build-time Debian mirror override, e.g.
 #   docker compose build --build-arg DEBIAN_MIRROR=http://mirrors.ustc.edu.cn
