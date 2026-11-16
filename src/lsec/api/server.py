@@ -1290,11 +1290,15 @@ def serve_static(path: str) -> ApiResponse:
         relative = name
     else:
         raise not_found("page not found")
-    target = (UI_DIR / relative).resolve()
-    try:
-        target.relative_to(UI_DIR.resolve())
-    except ValueError:
-        raise not_found("resource not found") from None
+    # Normalize the requested path and verify it stays under the UI directory
+    # before touching the filesystem. The order matters: `os.path.realpath`
+    # both normalizes the path and is the barrier CodeQL recognizes, and the
+    # `startswith` check below is its matching safe-access guard.
+    base = str(UI_DIR.resolve())
+    resolved = os.path.realpath(os.path.join(base, relative))
+    if not resolved.startswith(base + os.sep):
+        raise not_found("resource not found")
+    target = Path(resolved)
     if not target.is_file():
         raise not_found("resource not found")
     data = target.read_bytes()
