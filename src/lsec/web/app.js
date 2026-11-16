@@ -262,7 +262,7 @@ async function doLogin(event) {
     sessionStorage.setItem('lsec_role', state.role);
     $('#token').value = '';
     showApp();
-    navigate(location.hash.replace('#', '') || 'dashboard');
+    goToPage(location.hash.replace('#', '') || 'dashboard');
   } catch (err) {
     errorNode.textContent = tServerText(err.message);
     errorNode.classList.remove('hidden');
@@ -278,7 +278,7 @@ async function doLogout() {
 }
 
 /* ------------------------------------------------------------- navigation */
-function navigate(page) {
+function goToPage(page) {
   if (!PAGE_META[page]) page = 'dashboard';
   state.page = page;
   if (location.hash !== `#${page}`) location.hash = page;
@@ -423,7 +423,7 @@ async function renderDashboard() {
       </table></div>
     </div>`;
 
-  $$('[data-goto]').forEach((button) => { button.onclick = () => navigate(button.dataset.goto); });
+  $$('[data-goto]').forEach((button) => { button.onclick = () => goToPage(button.dataset.goto); });
   $$('[data-event-id]').forEach((row) => {
     row.onclick = () => showEventModal(row.dataset.eventId);
   });
@@ -435,7 +435,7 @@ async function renderDashboard() {
       try {
         await api('/scans', { method: 'POST', body: { type: 'quick', engines: ['clamav'] } });
         toast(t('dashboard.scanCreated'));
-        navigate('scan');
+        goToPage('scan');
       } catch (err) { toast(err.message, true); }
     };
   }
@@ -1358,7 +1358,7 @@ async function renderHost() {
     <div class="card"><div class="card-head"><h2>${esc(t('host.integrityTitle'))}</h2></div>
       ${empty(t('host.integrityEmpty'))}
     </div>`;
-  $$('[data-goto]').forEach((button) => { button.onclick = () => navigate(button.dataset.goto); });
+  $$('[data-goto]').forEach((button) => { button.onclick = () => goToPage(button.dataset.goto); });
   const wazuhPlan = $('#wazuh-plan');
   if (wazuhPlan) {
     wazuhPlan.onclick = async () => {
@@ -1531,7 +1531,7 @@ async function renderContainers() {
       </ul>
     </div>`;
 
-  $$('[data-goto]').forEach((button) => { button.onclick = () => navigate(button.dataset.goto); });
+  $$('[data-goto]').forEach((button) => { button.onclick = () => goToPage(button.dataset.goto); });
   $$('[data-container-open]').forEach((button) => {
     button.onclick = () => showContainerModal(button.dataset.containerOpen);
   });
@@ -1826,7 +1826,7 @@ async function renderAudit() {
   const run = $('#audit-run');
   if (run) run.onclick = () => runHostAudit(run);
   $('#doctor-run').onclick = async () => { await renderAudit(); toast(t('audit.selfCheckDone')); };
-  $$('[data-goto]').forEach((button) => { button.onclick = () => navigate(button.dataset.goto); });
+  $$('[data-goto]').forEach((button) => { button.onclick = () => goToPage(button.dataset.goto); });
 }
 
 /* --------------------------------------------------------------- settings */
@@ -1891,7 +1891,7 @@ async function renderSettings() {
         ? `<div id="log-view" class="pre" style="max-height:320px">${esc(t('settings.logReadHint'))}</div>`
         : `<div class="empty">${esc(t('settings.logsAdminOnly'))}</div>`}
     </div>`;
-  $$('[data-goto]').forEach((button) => { button.onclick = () => navigate(button.dataset.goto); });
+  $$('[data-goto]').forEach((button) => { button.onclick = () => goToPage(button.dataset.goto); });
   const logsButton = $('#load-logs');
   if (logsButton) {
     logsButton.onclick = async () => {
@@ -1928,11 +1928,11 @@ async function boot() {
     if (event.key === 'Escape' && !$('#modal').classList.contains('hidden')) closeModal(false);
   });
   $$('.nav-item').forEach((button) => {
-    button.addEventListener('click', () => navigate(button.dataset.page));
+    button.addEventListener('click', () => goToPage(button.dataset.page));
   });
   window.addEventListener('hashchange', () => {
     const page = location.hash.replace('#', '') || 'dashboard';
-    if (page !== state.page) navigate(page);
+    if (page !== state.page) goToPage(page);
   });
 
   if (!state.csrf) {
@@ -1943,7 +1943,7 @@ async function boot() {
   try {
     await api('/status');
     showApp();
-    navigate(location.hash.replace('#', '') || 'dashboard');
+    goToPage(location.hash.replace('#', '') || 'dashboard');
   } catch (err) {
     if (err.status !== 401) showLogin(err.message);
   }

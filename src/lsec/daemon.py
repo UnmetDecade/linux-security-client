@@ -291,8 +291,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     log.info("Web management UI: %s://%s:%s/", scheme, config.server.bind, config.server.port)
     log.info(
-        "access token files: %s (do not share tokens through chat or logs)",
-        config.secrets_dir,
+        "access token files are stored under %s in the protected secrets directory "
+        "(do not share tokens through chat or logs)",
+        config.data_dir,
     )
 
     def _handle_signal(signum: int, _frame: object) -> None:
